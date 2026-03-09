@@ -1,55 +1,453 @@
-import React, { useState } from 'react';
+// import React, { useState } from 'react';
+// import { Link, useNavigate } from 'react-router-dom';
+// import { useSelector, useDispatch } from 'react-redux';
+// import type { RootState } from '../../redux/store';
+// import { logout as logoutAction, setActiveRole } from '../../redux/slices/auth/authSlice';
+// import { switchRole as switchRoleApi, logout as logoutApi } from '../../services/authService';
+// import { Menu, X, Briefcase, User, LogOut, ArrowLeftRight, Shield } from 'lucide-react';
+// import toast from 'react-hot-toast';
+
+// const Navbar: React.FC = () => {
+//     const [isMenuOpen, setIsMenuOpen] = useState(false);
+//     const [isProfileOpen, setIsProfileOpen] = useState(false);
+//     const [isSwitching, setIsSwitching] = useState(false);
+//     const { user, activeRole } = useSelector((state: RootState) => state.auth);
+//     const dispatch = useDispatch();
+//     const navigate = useNavigate();
+
+//     const toggleMenu = () => {
+//         setIsMenuOpen(!isMenuOpen);
+//     };
+
+//     const handleLogout = async () => {
+//         try {
+//             await logoutApi();
+//             dispatch(logoutAction());
+//             localStorage.removeItem('accessToken');
+//             localStorage.removeItem('user');
+//             localStorage.removeItem('activeRole');
+//             navigate('/');
+//             setIsProfileOpen(false);
+//             toast.success('Logged out successfully');
+//         } catch (error) {
+//             console.error('Logout failed:', error);
+//             // Fallback: clear local state even if API fails
+//             dispatch(logoutAction());
+//             localStorage.removeItem('accessToken');
+//             localStorage.removeItem('user');
+//             localStorage.removeItem('activeRole');
+//             navigate('/');
+//             setIsProfileOpen(false);
+//         }
+//     };
+
+//     const handleSwitchRole = async () => {
+//         if (!user) return;
+
+//         setIsSwitching(true);
+//         const nextRole = activeRole === 'client' ? 'freelancer' : 'client';
+
+//         try {
+//             const response = await switchRoleApi(nextRole);
+//             if (response.success) {
+//                 const { hasProfile, accessToken } = response.data;
+//                 dispatch(setActiveRole({
+//                     role: nextRole,
+//                     hasProfile,
+//                     accessToken
+//                 }));
+//                 toast.success(`Switched to ${nextRole.toLowerCase()} role`);
+//                 setIsProfileOpen(false);
+//                 setIsMenuOpen(false);
+
+//                 // Redirect logic based on profile existence
+//                 if (nextRole === 'freelancer' && hasProfile === false) {
+//                     navigate('/freelancer/setup-profile');
+//                 } else {
+//                     navigate('/home');
+//                 }
+//             } else {
+//                 toast.error(response.message || 'Failed to switch role');
+//             }
+//         } catch (error: any) {
+//             toast.error(error.response?.data?.message || 'Error switching role');
+//             console.error('Role switch error:', error);
+//         } finally {
+//             setIsSwitching(false);
+//         }
+//     };
+
+//     const navLinks = [
+//         { name: 'Home', path: '/' },
+//         { name: 'How It Works', path: '/#how-it-works' },
+//         { name: 'Categories', path: '/#categories' },
+//         // { name: 'About', path: '/about' },
+//         // { name: 'Contact', path: '/contact' },
+//     ];
+
+//     const buttonBase = "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+//     const buttonSm = "h-8 px-3 text-sm";
+//     const buttonPrimary = "bg-teal-600 text-white hover:bg-teal-700 focus:ring-teal-500";
+//     const buttonOutline = "border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-teal-500";
+
+//     return (
+//         <nav className="bg-white shadow-sm sticky top-0 z-50">
+//             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//                 <div className="flex justify-between h-16">
+//                     <div className="flex items-center">
+//                         <Link to={user ? "/home" : "/"} className="flex-shrink-0 flex items-center">
+//                             <span className="bg-teal-600 p-1.5 rounded-lg mr-2">
+//                                 <Briefcase className="h-6 w-6 text-white" />
+//                             </span>
+//                             <span className="font-bold text-xl text-gray-900">NexBid</span>
+//                         </Link>
+
+//                     </div>
+
+//                     <div className="hidden md:flex items-center space-x-8">
+//                         {!user && navLinks.map((link) => (
+//                             <a
+//                                 key={link.name}
+//                                 href={link.path}
+//                                 className="text-gray-600 hover:text-teal-600 font-medium transition-colors"
+//                             >
+//                                 {link.name}
+//                             </a>
+//                         ))}
+
+//                         {user ? (
+//                             <div className="flex items-center space-x-4 ml-4">
+//                                 {/* <Link to="/home">
+//                                     <button className={`${buttonBase} ${buttonOutline} ${buttonSm} flex items-center gap-2`}>
+//                                         <Home className="h-4 w-4" />
+//                                         Dashboard
+//                                     </button>
+//                                 </Link> */}
+
+//                                 {/* User Profile Dropdown */}
+//                                 <div className="flex items-center gap-3">
+//                                     <span className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${activeRole === 'freelancer'
+//                                         ? 'bg-purple-100 text-purple-800 border-purple-200'
+//                                         : 'bg-teal-100 text-teal-800 border-teal-200'
+//                                         }`}>
+//                                         <Shield className="w-3 h-3 mr-1" />
+//                                         {activeRole}
+//                                     </span>
+
+//                                     <div className="relative">
+//                                         <button
+//                                             onClick={() => setIsProfileOpen(!isProfileOpen)}
+//                                             className="flex items-center gap-2 text-gray-700 hover:text-teal-600 transition-colors"
+//                                         >
+//                                             <div className="bg-teal-100 p-2 rounded-full">
+//                                                 <User className="h-4 w-4 text-teal-600" />
+//                                             </div>
+//                                             <span className="font-medium">{user.name}</span>
+//                                         </button>
+
+//                                         {isProfileOpen && (
+//                                             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1">
+//                                                 <div className="px-4 py-2 border-b border-gray-100">
+//                                                     <p className="text-sm font-medium text-gray-900">{user.name}</p>
+//                                                     <p className="text-xs text-gray-500">{user.email}</p>
+//                                                 </div>
+//                                                 <button
+//                                                     onClick={handleSwitchRole}
+//                                                     disabled={isSwitching}
+//                                                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+//                                                 >
+//                                                     <div className="flex items-center gap-2">
+//                                                         <ArrowLeftRight className={`h-4 w-4 ${isSwitching ? 'animate-spin' : ''}`} />
+//                                                         Switch to {activeRole === 'client' ? 'Freelancer' : 'Client'}
+//                                                     </div>
+//                                                 </button>
+//                                                 <button
+//                                                     onClick={handleLogout}
+//                                                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+//                                                 >
+//                                                     <div className="flex items-center gap-2">
+//                                                         <LogOut className="h-4 w-4" />
+//                                                         Logout
+//                                                     </div>
+//                                                 </button>
+//                                             </div>
+//                                         )}
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         ) : (
+//                             <div className="flex items-center space-x-4 ml-4">
+//                                 <Link to="/login">
+//                                     <button className={`${buttonBase} ${buttonOutline} ${buttonSm}`}>Log In</button>
+//                                 </Link>
+//                                 <Link to="/signup">
+//                                     <button className={`${buttonBase} ${buttonPrimary} ${buttonSm}`}>Sign Up</button>
+//                                 </Link>
+//                             </div>
+//                         )}
+//                     </div>
+
+//                     <div className="flex items-center md:hidden">
+//                         <button
+//                             onClick={toggleMenu}
+//                             className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500"
+//                         >
+//                             <span className="sr-only">Open main menu</span>
+//                             {isMenuOpen ? (
+//                                 <X className="block h-6 w-6" aria-hidden="true" />
+//                             ) : (
+//                                 <Menu className="block h-6 w-6" aria-hidden="true" />
+//                             )}
+//                         </button>
+//                     </div>
+//                 </div>
+//             </div>
+
+//             {/* Mobile menu */}
+//             {
+//                 isMenuOpen && (
+//                     <div className="md:hidden">
+//                         {!user && (
+//                             <div className="pt-2 pb-3 space-y-1 sm:px-3">
+//                                 {navLinks.map((link) => (
+//                                     <a
+//                                         key={link.name}
+//                                         href={link.path}
+//                                         className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-teal-600 hover:bg-gray-50"
+//                                         onClick={() => setIsMenuOpen(false)}
+//                                     >
+//                                         {link.name}
+//                                     </a>
+//                                 ))}
+//                             </div>
+//                         )}
+
+//                         <div className="pt-4 pb-4 border-t border-gray-200">
+//                             {user ? (
+//                                 <div className="px-5 space-y-3">
+//                                     <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-200">
+//                                         <div className="flex items-center gap-3">
+//                                             <div className="bg-teal-100 p-2 rounded-full">
+//                                                 <User className="h-5 w-5 text-teal-600" />
+//                                             </div>
+//                                             <div>
+//                                                 <p className="font-medium text-gray-900 truncate max-w-[150px]">{user.name}</p>
+//                                                 <p className="text-sm text-gray-500 truncate max-w-[150px]">{user.email}</p>
+//                                             </div>
+//                                         </div>
+//                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${activeRole === 'freelancer'
+//                                             ? 'bg-purple-100 text-purple-800 border-purple-200'
+//                                             : 'bg-teal-100 text-teal-800 border-teal-200'
+//                                             }`}>
+//                                             {activeRole}
+//                                         </span>
+//                                     </div>
+//                                     {/* <Link to="/home" className="w-full" onClick={() => setIsMenuOpen(false)}>
+//                                     <button className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full justify-start gap-2`}>
+//                                         <Home className="h-4 w-4" />
+//                                         Dashboard
+//                                     </button>
+//                                 </Link> */}
+
+//                                     <button
+//                                         onClick={handleSwitchRole}
+//                                         disabled={isSwitching}
+//                                         className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full justify-start gap-2 disabled:opacity-50`}
+//                                     >
+//                                         <ArrowLeftRight className={`h-4 w-4 ${isSwitching ? 'animate-spin' : ''}`} />
+//                                         Switch to {activeRole === 'client' ? 'Freelancer' : 'Client'}
+//                                     </button>
+
+//                                     {/* <Link to="/profile" className="w-full" onClick={() => setIsMenuOpen(false)}>
+//                                     <button className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full justify-start gap-2`}>
+//                                         <User className="h-4 w-4" />
+//                                         My Profile
+//                                     </button>
+//                                 </Link> */}
+//                                     <button
+//                                         onClick={handleLogout}
+//                                         className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+//                                     >
+//                                         <LogOut className="h-4 w-4" />
+//                                         Logout
+//                                     </button>
+//                                 </div>
+//                             ) : (
+//                                 <div className="flex items-center px-5 space-x-4">
+//                                     <Link to="/login" className="w-full">
+//                                         <button className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full`}>Log In</button>
+//                                     </Link>
+//                                     <Link to="/signup" className="w-full">
+//                                         <button className={`${buttonBase} ${buttonPrimary} ${buttonSm} w-full`}>Sign Up</button>
+//                                     </Link>
+//                                 </div>
+//                             )}
+//                         </div>
+//                     </div>
+//                 )
+//             }
+//         </nav >
+//     );
+// };
+
+// export default Navbar;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../redux/store';
-import { logout, setActiveRole } from '../../redux/slices/auth/authSlice';
-import { switchRole as switchRoleApi } from '../../services/authService';
-import { Menu, X, Briefcase, User, LogOut, Home, ArrowLeftRight, Shield } from 'lucide-react';
+import { logout as logoutAction, setActiveRole } from '../../redux/slices/auth/authSlice';
+import { switchRole as switchRoleApi, logout as logoutApi } from '../../services/authService';
+import { Menu, X, Briefcase, User, LogOut, ArrowLeftRight, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Navbar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isSwitching, setIsSwitching] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+
     const { user, activeRole } = useSelector((state: RootState) => state.auth);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const toggleMenu = () => {
-        setIsMenuOpen(!isMenuOpen);
-    };
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 24);
+        window.addEventListener('scroll', onScroll);
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
-    const handleLogout = () => {
-        dispatch(logout());
+    // Close profile dropdown on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('#profile-dropdown-wrapper')) {
+                setIsProfileOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const handleLogout = async () => {
+        try {
+            await logoutApi();
+        } catch (_) {}
+        dispatch(logoutAction());
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
         localStorage.removeItem('activeRole');
-        navigate('/');
         setIsProfileOpen(false);
+        navigate('/');
+        toast.success('Logged out successfully');
     };
 
     const handleSwitchRole = async () => {
         if (!user) return;
-
         setIsSwitching(true);
         const nextRole = activeRole === 'client' ? 'freelancer' : 'client';
-
         try {
             const response = await switchRoleApi(nextRole);
             if (response.success) {
                 const { hasProfile, accessToken } = response.data;
-                dispatch(setActiveRole({
-                    role: nextRole,
-                    hasProfile,
-                    accessToken
-                }));
-                toast.success(`Switched to ${nextRole.toLowerCase()} role`);
+                dispatch(setActiveRole({ role: nextRole, hasProfile, accessToken }));
+                toast.success(`Switched to ${nextRole} role`);
                 setIsProfileOpen(false);
                 setIsMenuOpen(false);
-
-                // Redirect logic based on profile existence
                 if (nextRole === 'freelancer' && hasProfile === false) {
-                    navigate('/freelancer/setup-profile');
+                    navigate('/freelancer/profile/setup');
                 } else {
                     navigate('/home');
                 }
@@ -58,7 +456,6 @@ const Navbar: React.FC = () => {
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Error switching role');
-            console.error('Role switch error:', error);
         } finally {
             setIsSwitching(false);
         }
@@ -68,223 +465,303 @@ const Navbar: React.FC = () => {
         { name: 'Home', path: '/' },
         { name: 'How It Works', path: '/#how-it-works' },
         { name: 'Categories', path: '/#categories' },
-        { name: 'About', path: '/about' },
-        { name: 'Contact', path: '/contact' },
     ];
 
-    const buttonBase = "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
-    const buttonSm = "h-8 px-3 text-sm";
-    const buttonPrimary = "bg-teal-600 text-white hover:bg-teal-700 focus:ring-teal-500";
-    const buttonOutline = "border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-teal-500";
-
     return (
-        <nav className="bg-white shadow-sm sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-16">
-                    <div className="flex items-center">
-                        <Link to={user ? "/home" : "/"} className="flex-shrink-0 flex items-center">
-                            <span className="bg-teal-600 p-1.5 rounded-lg mr-2">
-                                <Briefcase className="h-6 w-6 text-white" />
-                            </span>
-                            <span className="font-bold text-xl text-gray-900">NexBid</span>
-                        </Link>
+        <>
+            <style>{`
+                .nb-nav {
+                    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+                    height: 64px;
+                    display: flex; align-items: center;
+                    padding: 0 1.5rem;
+                    transition: background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease;
+                    font-family: 'DM Sans', sans-serif;
+                }
+                .nb-nav.scrolled {
+                    background: rgba(8,8,12,0.88);
+                    backdrop-filter: blur(18px);
+                    -webkit-backdrop-filter: blur(18px);
+                    border-bottom: 1px solid rgba(255,255,255,0.07);
+                }
+                .nb-nav.top { background: transparent; border-bottom: none; }
+                .nb-inner { max-width: 1200px; width: 100%; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+                .nb-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+                .nb-logo-box {
+                    width: 30px; height: 30px; border-radius: 8px;
+                    background: linear-gradient(135deg, #6EE7B7 0%, #3B82F6 100%);
+                    display: flex; align-items: center; justify-content: center;
+                    font-weight: 800; font-size: 14px; color: #000;
+                }
+                .nb-logo-text { font-weight: 700; font-size: 17px; color: #fff; letter-spacing: -0.3px; }
+                .nb-links { display: flex; align-items: center; gap: 2rem; }
+                .nb-link {
+                    font-size: 14px; font-weight: 450; color: rgba(255,255,255,0.55);
+                    text-decoration: none; transition: color 0.2s;
+                }
+                .nb-link:hover { color: #fff; }
+                .nb-actions { display: flex; align-items: center; gap: 10px; }
+                .nb-btn-ghost {
+                    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+                    color: rgba(255,255,255,0.65); background: none; border: none; cursor: pointer;
+                    padding: 7px 14px; border-radius: 8px; text-decoration: none;
+                    transition: color 0.2s; display: inline-flex; align-items: center;
+                }
+                .nb-btn-ghost:hover { color: #fff; }
+                .nb-btn-primary {
+                    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+                    color: #000; background: linear-gradient(135deg, #6EE7B7 0%, #3B82F6 100%);
+                    border: none; cursor: pointer; padding: 7px 18px; border-radius: 8px;
+                    text-decoration: none; transition: opacity 0.2s;
+                    display: inline-flex; align-items: center;
+                }
+                .nb-btn-primary:hover { opacity: 0.85; }
+                .nb-btn-outline {
+                    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+                    color: rgba(255,255,255,0.7);
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.12);
+                    cursor: pointer; padding: 6px 14px; border-radius: 8px;
+                    transition: border-color 0.2s, background 0.2s;
+                    display: inline-flex; align-items: center; gap: 6px;
+                }
+                .nb-btn-outline:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.09); color: #fff; }
+                .nb-btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+                /* Role badge */
+                .nb-role-badge {
+                    display: inline-flex; align-items: center; gap: 4px;
+                    padding: 3px 10px; border-radius: 100px;
+                    font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+                    border: 1px solid;
+                }
+                .nb-role-client { background: rgba(20,184,166,0.12); color: #5EEAD4; border-color: rgba(20,184,166,0.25); }
+                .nb-role-freelancer { background: rgba(167,139,250,0.12); color: #C4B5FD; border-color: rgba(167,139,250,0.25); }
+                /* Profile avatar button */
+                .nb-avatar-btn {
+                    display: flex; align-items: center; gap: 8px; background: none; border: none;
+                    cursor: pointer; padding: 5px 8px; border-radius: 9px;
+                    transition: background 0.2s;
+                }
+                .nb-avatar-btn:hover { background: rgba(255,255,255,0.07); }
+                .nb-avatar {
+                    width: 32px; height: 32px; border-radius: 50%;
+                    background: linear-gradient(135deg, #6EE7B7 0%, #3B82F6 100%);
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 12px; font-weight: 800; color: #000; flex-shrink: 0;
+                }
+                .nb-avatar-name { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; color: #fff; }
+                /* Dropdown */
+                .nb-dropdown {
+                    position: absolute; right: 0; top: calc(100% + 10px);
+                    width: 210px; background: rgba(18,18,24,0.97);
+                    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255,255,255,0.09); border-radius: 12px;
+                    overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+                    font-family: 'DM Sans', sans-serif;
+                }
+                .nb-dropdown-header { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+                .nb-dropdown-name { font-size: 14px; font-weight: 700; color: #fff; }
+                .nb-dropdown-email { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+                .nb-dropdown-item {
+                    width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+                    padding: 10px 16px; font-family: 'DM Sans', sans-serif;
+                    font-size: 14px; color: rgba(255,255,255,0.65);
+                    display: flex; align-items: center; gap: 9px;
+                    transition: background 0.15s, color 0.15s;
+                }
+                .nb-dropdown-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+                .nb-dropdown-item:disabled { opacity: 0.5; cursor: not-allowed; }
+                .nb-dropdown-item.danger { color: rgba(252,165,165,0.8); }
+                .nb-dropdown-item.danger:hover { background: rgba(239,68,68,0.08); color: #FCA5A5; }
+                /* Mobile toggle */
+                .nb-mobile-toggle {
+                    display: none; background: none; border: none; color: rgba(255,255,255,0.7);
+                    cursor: pointer; padding: 6px; border-radius: 8px; transition: background 0.2s;
+                }
+                .nb-mobile-toggle:hover { background: rgba(255,255,255,0.07); color: #fff; }
+                /* Mobile menu */
+                .nb-mobile-menu {
+                    position: fixed; top: 64px; left: 0; right: 0;
+                    background: rgba(8,8,12,0.97); backdrop-filter: blur(20px);
+                    border-bottom: 1px solid rgba(255,255,255,0.07);
+                    padding: 1.2rem 1.5rem 1.6rem;
+                    font-family: 'DM Sans', sans-serif;
+                    display: flex; flex-direction: column; gap: 4px;
+                }
+                .nb-mobile-link {
+                    display: block; padding: 10px 12px; border-radius: 8px;
+                    font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.65);
+                    text-decoration: none; transition: background 0.15s, color 0.15s;
+                }
+                .nb-mobile-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+                .nb-mobile-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 10px 0; }
+                .nb-mobile-user { display: flex; align-items: center; gap: 10px; padding: 4px 12px 12px; }
+                .nb-mobile-actions { display: flex; flex-direction: column; gap: 8px; }
+                @media (max-width: 768px) {
+                    .nb-links, .nb-actions { display: none !important; }
+                    .nb-mobile-toggle { display: flex !important; }
+                }
+            `}</style>
 
-                        {user && (
-                            <div className="ml-4 hidden sm:flex items-center">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${activeRole === 'freelancer'
-                                    ? 'bg-purple-100 text-purple-800 border-purple-200'
-                                    : 'bg-teal-100 text-teal-800 border-teal-200'
-                                    }`}>
-                                    <Shield className="w-3 h-3 mr-1" />
-                                    {activeRole}
-                                </span>
-                            </div>
-                        )}
+            <nav className={`nb-nav ${scrolled ? 'scrolled' : 'top'}`}>
+                <div className="nb-inner">
+                    {/* Logo */}
+                    <Link to={user ? '/home' : '/'} className="nb-logo">
+                        <div className="nb-logo-box">N</div>
+                        <span className="nb-logo-text">NexBid</span>
+                    </Link>
+
+                    {/* Desktop Nav Links */}
+                    <div className="nb-links">
+                        {!user && navLinks.map(link => (
+                            <a key={link.name} href={link.path} className="nb-link">{link.name}</a>
+                        ))}
                     </div>
 
-                    <div className="hidden md:flex items-center space-x-8">
-                        {!user && navLinks.map((link) => (
-                            <a
-                                key={link.name}
-                                href={link.path}
-                                className="text-gray-600 hover:text-teal-600 font-medium transition-colors"
-                            >
-                                {link.name}
-                            </a>
-                        ))}
-
+                    {/* Desktop Actions */}
+                    <div className="nb-actions">
                         {user ? (
-                            <div className="flex items-center space-x-4 ml-4">
-                                <Link to="/home">
-                                    <button className={`${buttonBase} ${buttonOutline} ${buttonSm} flex items-center gap-2`}>
-                                        <Home className="h-4 w-4" />
-                                        Dashboard
-                                    </button>
-                                </Link>
+                            <>
+                                <span className={`nb-role-badge ${activeRole === 'freelancer' ? 'nb-role-freelancer' : 'nb-role-client'}`}>
+                                    <Shield style={{ width: 10, height: 10 }} />
+                                    {activeRole}
+                                </span>
 
-                                {/* User Profile Dropdown */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setIsProfileOpen(!isProfileOpen)}
-                                        className="flex items-center gap-2 text-gray-700 hover:text-teal-600 transition-colors"
-                                    >
-                                        <div className="bg-teal-100 p-2 rounded-full">
-                                            <User className="h-4 w-4 text-teal-600" />
+                                <div id="profile-dropdown-wrapper" style={{ position: 'relative' }}>
+                                    <button className="nb-avatar-btn" onClick={() => setIsProfileOpen(o => !o)}>
+                                        <div className="nb-avatar">
+                                            {user.name?.charAt(0).toUpperCase()}
                                         </div>
-                                        <span className="font-medium">{user.name}</span>
+                                        <span className="nb-avatar-name">{user.name}</span>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" style={{ transition: 'transform 0.2s', transform: isProfileOpen ? 'rotate(180deg)' : 'rotate(0)' }}>
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
                                     </button>
 
                                     {isProfileOpen && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1">
-                                            <div className="px-4 py-2 border-b border-gray-100">
-                                                <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                                                <p className="text-xs text-gray-500">{user.email}</p>
+                                        <div className="nb-dropdown">
+                                            <div className="nb-dropdown-header">
+                                                <div className="nb-dropdown-name">{user.name}</div>
+                                                <div className="nb-dropdown-email">{user.email}</div>
                                             </div>
-                                            <Link
-                                                to="/profile"
-                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                                onClick={() => setIsProfileOpen(false)}
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <User className="h-4 w-4" />
-                                                    My Profile
-                                                </div>
-                                            </Link>
                                             <button
+                                                className="nb-dropdown-item"
                                                 onClick={handleSwitchRole}
                                                 disabled={isSwitching}
-                                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
                                             >
-                                                <div className="flex items-center gap-2">
-                                                    <ArrowLeftRight className={`h-4 w-4 ${isSwitching ? 'animate-spin' : ''}`} />
-                                                    Switch to {activeRole === 'client' ? 'Freelancer' : 'Client'}
-                                                </div>
+                                                <ArrowLeftRight style={{ width: 15, height: 15, flexShrink: 0 }}
+                                                    className={isSwitching ? 'animate-spin' : ''} />
+                                                Switch to {activeRole === 'client' ? 'Freelancer' : 'Client'}
                                             </button>
-                                            <button
-                                                onClick={handleLogout}
-                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <LogOut className="h-4 w-4" />
-                                                    Logout
-                                                </div>
+                                            
+
+                                            {/* { <Link to="/profile" className="w-full" onClick={() => setIsMenuOpen(false)}>
+                                                <button className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full justify-start gap-2`}>
+                                                    <User className="h-4 w-4" />
+                                                    My Profile
+                                                </button>
+                                            </Link> } */}
+
+
+                                            <Link to={`/${activeRole}/profile`} onClick={() => setIsMenuOpen(false)}>
+                                                <button className="nb-dropdown-item">
+                                                    <User style={{ width: 15, height: 15, flexShrink: 0 }} />
+                                                    My Profile
+                                                </button>
+                                            </Link>
+
+
+                                            <button className="nb-dropdown-item danger" onClick={handleLogout}>
+                                                <LogOut style={{ width: 15, height: 15, flexShrink: 0 }} />
+                                                Logout
                                             </button>
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            </>
                         ) : (
-                            <div className="flex items-center space-x-4 ml-4">
+                            <>
                                 <Link to="/login">
-                                    <button className={`${buttonBase} ${buttonOutline} ${buttonSm}`}>Log In</button>
+                                    <button className="nb-btn-ghost">Log in</button>
                                 </Link>
                                 <Link to="/signup">
-                                    <button className={`${buttonBase} ${buttonPrimary} ${buttonSm}`}>Sign Up</button>
+                                    <button className="nb-btn-primary">Sign up free</button>
                                 </Link>
-                            </div>
+                            </>
                         )}
                     </div>
 
-                    <div className="flex items-center md:hidden">
-                        <button
-                            onClick={toggleMenu}
-                            className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500"
-                        >
-                            <span className="sr-only">Open main menu</span>
-                            {isMenuOpen ? (
-                                <X className="block h-6 w-6" aria-hidden="true" />
-                            ) : (
-                                <Menu className="block h-6 w-6" aria-hidden="true" />
-                            )}
-                        </button>
-                    </div>
+                    {/* Mobile toggle */}
+                    <button className="nb-mobile-toggle" onClick={() => setIsMenuOpen(o => !o)}>
+                        {isMenuOpen
+                            ? <X style={{ width: 22, height: 22 }} />
+                            : <Menu style={{ width: 22, height: 22 }} />}
+                    </button>
                 </div>
-            </div>
+            </nav>
 
             {/* Mobile menu */}
             {isMenuOpen && (
-                <div className="md:hidden">
-                    {!user && (
-                        <div className="pt-2 pb-3 space-y-1 sm:px-3">
-                            {navLinks.map((link) => (
-                                <a
-                                    key={link.name}
-                                    href={link.path}
-                                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-teal-600 hover:bg-gray-50"
-                                    onClick={() => setIsMenuOpen(false)}
-                                >
-                                    {link.name}
-                                </a>
-                            ))}
-                        </div>
-                    )}
+                <div className="nb-mobile-menu">
+                    {!user && navLinks.map(link => (
+                        <a key={link.name} href={link.path} className="nb-mobile-link"
+                            onClick={() => setIsMenuOpen(false)}>{link.name}</a>
+                    ))}
 
-                    <div className="pt-4 pb-4 border-t border-gray-200">
-                        {user ? (
-                            <div className="px-5 space-y-3">
-                                <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-200">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-teal-100 p-2 rounded-full">
-                                            <User className="h-5 w-5 text-teal-600" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-gray-900 truncate max-w-[150px]">{user.name}</p>
-                                            <p className="text-sm text-gray-500 truncate max-w-[150px]">{user.email}</p>
-                                        </div>
-                                    </div>
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${activeRole === 'freelancer'
-                                        ? 'bg-purple-100 text-purple-800 border-purple-200'
-                                        : 'bg-teal-100 text-teal-800 border-teal-200'
-                                        }`}>
-                                        {activeRole}
-                                    </span>
+                    <hr className="nb-mobile-divider" />
+
+                    {user ? (
+                        <>
+                            <div className="nb-mobile-user">
+                                <div className="nb-avatar">{user.name?.charAt(0).toUpperCase()}</div>
+                                <div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{user.name}</div>
+                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{user.email}</div>
                                 </div>
-                                <Link to="/home" className="w-full" onClick={() => setIsMenuOpen(false)}>
-                                    <button className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full justify-start gap-2`}>
-                                        <Home className="h-4 w-4" />
-                                        Dashboard
-                                    </button>
-                                </Link>
-
-                                <button
-                                    onClick={handleSwitchRole}
-                                    disabled={isSwitching}
-                                    className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full justify-start gap-2 disabled:opacity-50`}
-                                >
-                                    <ArrowLeftRight className={`h-4 w-4 ${isSwitching ? 'animate-spin' : ''}`} />
+                                <span style={{ marginLeft: 'auto' }}
+                                    className={`nb-role-badge ${activeRole === 'freelancer' ? 'nb-role-freelancer' : 'nb-role-client'}`}>
+                                    {activeRole}
+                                </span>
+                            </div>
+                            <div className="nb-mobile-actions">
+                                <button className="nb-btn-outline" style={{ justifyContent: 'flex-start' }}
+                                    onClick={handleSwitchRole} disabled={isSwitching}>
+                                    <ArrowLeftRight style={{ width: 15, height: 15 }}
+                                        className={isSwitching ? 'animate-spin' : ''} />
                                     Switch to {activeRole === 'client' ? 'Freelancer' : 'Client'}
                                 </button>
-
-                                <Link to="/profile" className="w-full" onClick={() => setIsMenuOpen(false)}>
-                                    <button className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full justify-start gap-2`}>
-                                        <User className="h-4 w-4" />
-                                        My Profile
-                                    </button>
-                                </Link>
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+                                <button onClick={handleLogout}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 500,
+                                        color: 'rgba(252,165,165,0.85)', textAlign: 'left',
+                                        padding: '10px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8,
+                                        transition: 'background 0.15s',
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
+                                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                                 >
-                                    <LogOut className="h-4 w-4" />
-                                    Logout
+                                    <LogOut style={{ width: 15, height: 15 }} /> Logout
                                 </button>
                             </div>
-                        ) : (
-                            <div className="flex items-center px-5 space-x-4">
-                                <Link to="/login" className="w-full">
-                                    <button className={`${buttonBase} ${buttonOutline} ${buttonSm} w-full`}>Log In</button>
-                                </Link>
-                                <Link to="/signup" className="w-full">
-                                    <button className={`${buttonBase} ${buttonPrimary} ${buttonSm} w-full`}>Sign Up</button>
-                                </Link>
-                            </div>
-                        )}
-                    </div>
+                        </>
+                    ) : (
+                        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                            <Link to="/login" style={{ flex: 1 }} onClick={() => setIsMenuOpen(false)}>
+                                <button className="nb-btn-outline" style={{ width: '100%', justifyContent: 'center' }}>Log in</button>
+                            </Link>
+                            <Link to="/signup" style={{ flex: 1 }} onClick={() => setIsMenuOpen(false)}>
+                                <button className="nb-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>Sign up</button>
+                            </Link>
+                        </div>
+                    )}
                 </div>
             )}
-        </nav>
+        </>
     );
 };
 
 export default Navbar;
+
+
 

@@ -8,12 +8,10 @@ const ProtectedRoute = () => {
     (state: RootState) => state.auth.isAuthenticated
   );
 
-  // If user is NOT authenticated, redirect to login
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // If authenticated, render the nested routes
   return <Outlet />;
 };
 

@@ -17,7 +17,6 @@ const HomePage: React.FC = () => {
         }
     }, [user, activeRole, hasFreelancerProfile, navigate]);
 
-    // Redirect to landing page if not authenticated
     if (!user) {
         return <Navigate to="/" replace />;
     }

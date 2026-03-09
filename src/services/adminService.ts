@@ -22,18 +22,3 @@ export const toggleBlockStatus = async (userId: string, isBlocked: boolean) => {
     return response.data;
 };
 
-// Placeholder for future implementation if backend supports these
-// export const getPendingFreelancers = async () => {
-//   const response = await API.get('/admin/freelancers/pending');
-//   return response.data;
-// };
-
-// export const approveFreelancer = async (freelancerId: string) => {
-//   const response = await API.patch(`/admin/freelancers/${freelancerId}/approve`);
-//   return response.data;
-// };
-
-// export const rejectFreelancer = async (freelancerId: string, reason: string) => {
-//   const response = await API.patch(`/admin/freelancers/${freelancerId}/reject`, { reason });
-//   return response.data;
-// };
