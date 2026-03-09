@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-interface User {
+interface   User {
   id: string;
   email: string;
   name: string;
@@ -17,10 +17,13 @@ interface AuthState {
   hasFreelancerProfile: boolean | null;
 }
 
+const storedUser = localStorage.getItem('user');
+const storedToken = localStorage.getItem('accessToken');
+
 const initialState: AuthState = {
-  user: null,
-  accessToken: null,
-  isAuthenticated: false,
+  user: storedUser ? JSON.parse(storedUser) : null,
+  accessToken: storedToken || null,
+  isAuthenticated: !!storedToken && !!storedUser,
   activeRole: localStorage.getItem('activeRole') || null,
   hasFreelancerProfile: localStorage.getItem('hasFreelancerProfile') === 'true' ? true :
     localStorage.getItem('hasFreelancerProfile') === 'false' ? false : null,
@@ -39,6 +42,9 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       const role = action.payload.user.activeRole || "client";
       state.activeRole = role;
+
+      localStorage.setItem('accessToken', action.payload.accessToken);
+      localStorage.setItem('user', JSON.stringify(action.payload.user));
       localStorage.setItem('activeRole', role);
     },
     logout: (state) => {
@@ -47,6 +53,9 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.activeRole = null;
       state.hasFreelancerProfile = null;
+
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('user');
       localStorage.removeItem('activeRole');
       localStorage.removeItem('hasFreelancerProfile');
     },
@@ -63,13 +72,16 @@ const authSlice = createSlice({
         state.hasFreelancerProfile = action.payload.hasProfile;
         localStorage.setItem('hasFreelancerProfile', String(action.payload.hasProfile));
       }
+      // localStorage.setItem('activeRole', role);
+    },
+    updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
-        state.user.activeRole = role;
+        state.user = { ...state.user, ...action.payload };
+        localStorage.setItem('user', JSON.stringify(state.user));
       }
-      localStorage.setItem('activeRole', role);
     },
   },
 });
 
-export const { setCredentials, logout, setActiveRole } = authSlice.actions;
+export const { setCredentials, logout, setActiveRole, updateUser } = authSlice.actions;
 export default authSlice.reducer;

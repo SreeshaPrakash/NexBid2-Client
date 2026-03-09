@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Mail } from 'lucide-react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { Lock, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { resetPassword } from '../../services/authService';
+import { resetPasswordSchema, isPasswordComplex } from '../../validations/zodSchemas';
 import toast from 'react-hot-toast';
 
 const ResetPassword: React.FC = () => {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const location = useLocation();
 
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
@@ -14,28 +15,47 @@ const ResetPassword: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
     useEffect(() => {
-        const emailParam = searchParams.get('email');
-        const otpParam = searchParams.get('otp');
-        if (emailParam) {
-            setEmail(emailParam);
+        // Extract email and otp from location state passed from VerifyOtp page
+        const { email: stateEmail, otp: stateOtp } = (location.state as any) || {};
+
+        if (stateEmail) {
+            setEmail(stateEmail);
+            if (stateOtp) setOtp(stateOtp);
+        } else {
+            // If someone navigates here directly without Email, send them back
+            toast.error("Session expired or invalid. Please try again.");
+            navigate('/forgot-password');
         }
-        if (otpParam) {
-            setOtp(otpParam);
-        }
-    }, [searchParams]);
+    }, [location.state, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrors({});
 
-        if (newPassword !== confirmPassword) {
-            toast.error("Passwords do not match");
+        // 1. Mandatory Field Validations (under the fields)
+        const result = resetPasswordSchema.safeParse({ otp, newPassword, confirmPassword });
+        if (!result.success) {
+            const fieldErrors: { [key: string]: string } = {};
+            result.error.issues.forEach((issue) => {
+                if (issue.path[0]) {
+                    fieldErrors[issue.path[0] as string] = issue.message;
+                }
+            });
+            setErrors(fieldErrors);
             return;
         }
 
-        if (newPassword.length < 8) {
-            toast.error("Password must be at least 8 characters");
+        // 2. Format & Logical Validations (Toasters)
+        if (!isPasswordComplex(newPassword)) {
+            toast.error("Password must be at least 8 characters and include uppercase, lowercase, number, and special character");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            toast.error("Passwords do not match");
             return;
         }
 
@@ -67,49 +87,43 @@ const ResetPassword: React.FC = () => {
                         </div>
                     </div>
                     <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                        Reset Password
+                        Update Password
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
-                        Set a strong new password for <span className="font-medium text-gray-900">{email}</span>
+                        Enter the OTP sent to <span className="font-medium text-gray-900">{email}</span> and set your new password.
                     </p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
                     <div className="space-y-4">
-                        {/* Email Field (Required for the reset service) */}
-                        {/* <div className="relative group">
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <div className="text-center py-2 bg-teal-50 rounded-lg mb-6 border border-teal-100">
+                            <p className="text-xs text-teal-700 font-medium italic">
+                                Step 3 of 3: Finalize New Password
+                            </p>
+                        </div>
+
+                        <div className="relative group">
+                            <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">OTP Code</label>
                             <div className="relative text-left">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-teal-500 transition-colors" />
+                                    <ShieldCheck className="h-5 w-5 text-gray-400 group-focus-within:text-teal-500 transition-colors" />
                                 </div>
                                 <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
+                                    id="otp"
+                                    name="otp"
+                                    type="text"
                                     required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
-                                    placeholder="Enter your email"
+                                    value={otp}
+                                    onChange={(e) => {
+                                        setOtp(e.target.value);
+                                        if (errors.otp) setErrors(prev => ({ ...prev, otp: '' }));
+                                    }}
+                                    className={`appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 pr-10 border ${errors.otp ? 'border-red-500' : 'border-gray-300'} placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm`}
+                                    placeholder="Enter 6-digit OTP"
+                                    maxLength={6}
                                 />
+                                {errors.otp && <p className="mt-1 text-xs text-red-500 font-medium">{errors.otp}</p>}
                             </div>
-                        </div> */}
-
-                        {/* 6-Digit OTP Input */}
-                        <div className="relative group">
-                            <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">6-Digit OTP Code</label>
-                            <input
-                                id="otp"
-                                name="otp"
-                                type="text"
-                                required
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
-                                className="appearance-none rounded-lg relative block w-full px-3 py-4 text-center text-2xl font-bold tracking-[0.5em] border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
-                                placeholder="••••••"
-                                maxLength={6}
-                            />
                         </div>
 
                         <div className="relative group">
@@ -124,10 +138,14 @@ const ResetPassword: React.FC = () => {
                                     type={showPassword ? "text" : "password"}
                                     required
                                     value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    className="appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
+                                    onChange={(e) => {
+                                        setNewPassword(e.target.value);
+                                        if (errors.newPassword) setErrors(prev => ({ ...prev, newPassword: '' }));
+                                    }}
+                                    className={`appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 pr-10 border ${errors.newPassword ? 'border-red-500' : 'border-gray-300'} placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm`}
                                     placeholder="Min. 8 characters"
                                 />
+                                {errors.newPassword && <p className="mt-1 text-xs text-red-500 font-medium">{errors.newPassword}</p>}
                                 <button
                                     type="button"
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
@@ -154,10 +172,14 @@ const ResetPassword: React.FC = () => {
                                     type={showPassword ? "text" : "password"}
                                     required
                                     value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
+                                    onChange={(e) => {
+                                        setConfirmPassword(e.target.value);
+                                        if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: '' }));
+                                    }}
+                                    className={`appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 pr-10 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm`}
                                     placeholder="Repeat your password"
                                 />
+                                {errors.confirmPassword && <p className="mt-1 text-xs text-red-500 font-medium">{errors.confirmPassword}</p>}
                             </div>
                         </div>
                     </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { verifyOtp, resendOtp } from '../../services/authService';
+import { resetPasswordSchema } from '../../validations/zodSchemas';
 import toast from 'react-hot-toast';
 
 const VerifyOtp: React.FC = () => {
@@ -11,14 +12,15 @@ const VerifyOtp: React.FC = () => {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
     useEffect(() => {
-        // Get email from location state (passed from signUp)
         if (location.state?.email) {
             setEmail(location.state.email);
+        } else if (location.state?.purpose === 'reset') {
+            toast.error("Email not found. Please try again.");
+            navigate('/forgot-password');
         } else {
-            // If no email in state, user probably shouldn't be here or we need another way to get it
-            // For now, redirect to signup or login
             toast.error("Email not found. Please sign up or login again.");
             navigate('/signup');
         }
@@ -39,7 +41,6 @@ const VerifyOtp: React.FC = () => {
 
         setOtp([...otp.map((d, idx) => (idx === index ? element.value : d))]);
 
-        // Focus next input
         if (element.nextSibling && element.value !== "") {
             (element.nextSibling as HTMLInputElement).focus();
         }
@@ -50,7 +51,6 @@ const VerifyOtp: React.FC = () => {
             const newOtp = [...otp];
             newOtp[index - 1] = "";
             setOtp(newOtp);
-            // Focus previous input
             const prevInput = (e.currentTarget.previousSibling as HTMLInputElement);
             if (prevInput) prevInput.focus();
         }
@@ -62,15 +62,16 @@ const VerifyOtp: React.FC = () => {
         if (!/^\d{6}$/.test(data)) return;
         const curOtp = data.split("");
         setOtp(curOtp);
-        // Focus last input (optional but good UX)
-        // We can't easily get the ref here without storing refs, but React state update will fill values
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrors({});
         const otpValue = otp.join("");
-        if (otpValue.length !== 6) {
-            toast.error("Please enter a valid 6-digit OTP");
+
+        const result = resetPasswordSchema.pick({ otp: true }).safeParse({ otp: otpValue });
+        if (!result.success) {
+            setErrors({ otp: result.error.issues[0].message });
             return;
         }
 
@@ -121,21 +122,27 @@ const VerifyOtp: React.FC = () => {
                     </p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="flex justify-center gap-2">
-                        {otp.map((data, index) => (
-                            <input
-                                key={index}
-                                type="text"
-                                name="otp"
-                                maxLength={1}
-                                value={data}
-                                onChange={(e) => handleChange(e.target, index)}
-                                onKeyDown={(e) => handleKeyDown(e, index)}
-                                onPaste={index === 0 ? handlePaste : undefined}
-                                className="w-12 h-14 text-center text-2xl font-extrabold text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:outline-none transition-all shadow-sm"
-                            />
-                        ))}
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="flex justify-center gap-2">
+                            {otp.map((data, index) => (
+                                <input
+                                    key={index}
+                                    type="text"
+                                    name="otp"
+                                    maxLength={1}
+                                    value={data}
+                                    onChange={(e) => {
+                                        handleChange(e.target, index);
+                                        if (errors.otp) setErrors({});
+                                    }}
+                                    onKeyDown={(e) => handleKeyDown(e, index)}
+                                    onPaste={index === 0 ? handlePaste : undefined}
+                                    className={`w-12 h-14 text-center text-2xl font-extrabold text-gray-900 bg-gray-50 border ${errors.otp ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:outline-none transition-all shadow-sm`}
+                                />
+                            ))}
+                        </div>
+                        {errors.otp && <p className="text-xs text-red-500 font-medium">{errors.otp}</p>}
                     </div>
 
                     <div>

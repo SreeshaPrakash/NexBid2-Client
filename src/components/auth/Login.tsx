@@ -5,6 +5,9 @@ import { loginUser } from '../../services/authService';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../redux/slices/auth/authSlice';
 import toast from 'react-hot-toast';
+import { useGoogleLogin } from '@react-oauth/google';
+import { googleLogin } from '../../services/authService';
+import { loginSchema, isValidEmailFormat } from '../../validations/zodSchemas';
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
@@ -15,16 +18,46 @@ const Login: React.FC = () => {
         password: ''
     });
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
             ...formData,
             [e.target.name]: e.target.value
         });
+        
+        if (errors[e.target.name]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[e.target.name];
+                return newErrors;
+            });
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrors({});
+
+        
+        const result = loginSchema.safeParse(formData);
+        if (!result.success) {
+            const fieldErrors: { [key: string]: string } = {};
+            result.error.issues.forEach((issue) => {
+                if (issue.path[0]) {
+                    fieldErrors[issue.path[0] as string] = issue.message;
+                }
+            });
+            setErrors(fieldErrors);
+            return;
+        }
+
+       
+        if (!isValidEmailFormat(formData.email)) {
+            toast.error("Invalid email format");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -34,13 +67,13 @@ const Login: React.FC = () => {
             });
 
             if (response.success && response.accessToken && response.user) {
-                // Dispatch to Redux
+                
                 dispatch(setCredentials({
                     user: response.user,
                     accessToken: response.accessToken
                 }));
 
-                // Save to local storage for persistence
+                
                 localStorage.setItem('accessToken', response.accessToken);
                 localStorage.setItem('user', JSON.stringify(response.user));
 
@@ -51,14 +84,11 @@ const Login: React.FC = () => {
             }
         } catch (error: any) {
             if (error.response) {
-                // The server responded with a status code outside the 2xx range
                 const errorMessage = error.response.data?.message || "Invalid email or password";
                 toast.error(errorMessage);
             } else if (error.request) {
-                // The request was made but no response was received
                 toast.error("Network error. Please check your connection or try again later.");
             } else {
-                // Something happened in setting up the request
                 toast.error("An unexpected error occurred. Please try again.");
             }
             console.error("Login Error:", error);
@@ -66,6 +96,42 @@ const Login: React.FC = () => {
             setLoading(false);
         }
     };
+
+    const handleGoogleSuccess = async (tokenResponse: any) => {
+        setLoading(true);
+        console.log("Token Response from Google:", tokenResponse);
+        try {
+            const response = await googleLogin(tokenResponse.access_token);
+            console.log("Response from Backend:", response);
+
+            if (response.success && response.accessToken && response.user) {
+                dispatch(setCredentials({
+                    user: response.user,
+                    accessToken: response.accessToken
+                }));
+                localStorage.setItem('accessToken', response.accessToken);
+                localStorage.setItem('user', JSON.stringify(response.user));
+                toast.success(response.message || "Logged in with Google!");
+                navigate('/home');
+            } else {
+                toast.error(response.message || "Google login failed: " + (response.message || "Unknown error"));
+            }
+        } catch (error: any) {
+            console.error("Google Login Error:", error);
+            const errorMsg = error.response?.data?.message || error.message || "Google login failed";
+            toast.error(errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loginWithGoogle = useGoogleLogin({
+        onSuccess: handleGoogleSuccess,
+        onError: (error) => {
+            console.error("useGoogleLogin Error:", error);
+            toast.error("Google login failed");
+        }
+    });
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-teal-50 via-gray-50 to-white">
@@ -88,7 +154,7 @@ const Login: React.FC = () => {
                     </p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
                     <div className="space-y-4">
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -102,9 +168,10 @@ const Login: React.FC = () => {
                                 required
                                 value={formData.email}
                                 onChange={handleChange}
-                                className="appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 focus:z-10 sm:text-sm transition-all shadow-sm"
+                                className={`appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 border ${errors.email ? 'border-red-500' : 'border-gray-300'} placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 focus:z-10 sm:text-sm transition-all shadow-sm`}
                                 placeholder="Email address"
                             />
+                            {errors.email && <p className="mt-1 text-xs text-red-500 font-medium">{errors.email}</p>}
                         </div>
 
                         <div className="relative group">
@@ -119,9 +186,10 @@ const Login: React.FC = () => {
                                 required
                                 value={formData.password}
                                 onChange={handleChange}
-                                className="appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 focus:z-10 sm:text-sm transition-all shadow-sm"
+                                className={`appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 pr-10 border ${errors.password ? 'border-red-500' : 'border-gray-300'} placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 focus:z-10 sm:text-sm transition-all shadow-sm`}
                                 placeholder="Password"
                             />
+                            {errors.password && <p className="mt-1 text-xs text-red-500 font-medium">{errors.password}</p>}
                             <button
                                 type="button"
                                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
@@ -137,7 +205,7 @@ const Login: React.FC = () => {
                     </div>
 
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center">
+                        {/* <div className="flex items-center">
                             <input
                                 id="remember-me"
                                 name="remember-me"
@@ -147,7 +215,7 @@ const Login: React.FC = () => {
                             <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                                 Remember me
                             </label>
-                        </div>
+                        </div> */}
 
                         <div className="text-sm">
                             <Link to="/forgot-password" title="Go to forgot password page" className="font-medium text-teal-600 hover:text-teal-500">
@@ -185,9 +253,13 @@ const Login: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-2 gap-3">
+                    <div className="mt-6">
                         <button
                             type="button"
+                            onClick={() => {
+                                console.log("Google button clicked");
+                                loginWithGoogle();
+                            }}
                             className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors"
                         >
                             <svg className="h-5 w-5 mr-2" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
@@ -195,7 +267,7 @@ const Login: React.FC = () => {
                             </svg>
                             Google
                         </button>
-                        <button
+                        {/* <button
                             type="button"
                             className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors"
                         >
@@ -203,7 +275,7 @@ const Login: React.FC = () => {
                                 <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
                             </svg>
                             GitHub
-                        </button>
+                        </button> */}
                     </div>
 
                     <div className="text-center mt-6">

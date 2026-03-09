@@ -11,6 +11,7 @@ export const verifyOtp = async (email: string, otp: string): Promise<AuthRespons
     return response.data;
 };
 
+
 export const loginUser = async (data: LoginDTO): Promise<AuthResponse> => {
     const response = await API.post('/login', data);
     return response.data;
@@ -46,6 +47,6 @@ export const switchRole = async (role: string): Promise<any> => {
     return response.data;
 };
 
-// export const logout = async () => {
-//   // Implement logout logic if backend has an endpoint, otherwise client-side only
-// };
+export const logout = async (): Promise<void> => {
+    await API.post('/logout');
+};

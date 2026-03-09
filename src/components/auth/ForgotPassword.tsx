@@ -2,22 +2,45 @@ import React, { useState } from 'react';
 import { Mail, ArrowRight, KeyRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { forgotPassword } from '../../services/authService';
+import { forgotPasswordSchema } from '../../validations/zodSchemas';
 import toast from 'react-hot-toast';
 
 const ForgotPassword: React.FC = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setEmail(e.target.value);
+        if (errors.email) {
+            setErrors({});
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrors({});
+
+        //mandatory fields validation
+        const result = forgotPasswordSchema.safeParse({ email });
+        if (!result.success) {
+            const fieldErrors: { [key: string]: string } = {};
+            result.error.issues.forEach((issue) => {
+                if (issue.path[0]) {
+                    fieldErrors[issue.path[0] as string] = issue.message;
+                }
+            });
+            setErrors(fieldErrors);
+            return;
+        }
+
         setLoading(true);
 
         try {
-            const response = await forgotPassword(email);
-            toast.success(response.message || "OTP sent to your email");
-            // Navigate to reset password page with email as query param
-            navigate(`/reset-password?email=${encodeURIComponent(email)}`);
+            await forgotPassword(email);
+            toast.success("OTP sent to your email");
+            navigate('/reset-password', { state: { email } });
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Failed to send OTP");
         } finally {
@@ -44,7 +67,7 @@ const ForgotPassword: React.FC = () => {
                     </p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
                     <div className="space-y-4">
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -56,10 +79,11 @@ const ForgotPassword: React.FC = () => {
                                 type="email"
                                 required
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
+                                onChange={handleChange}
+                                className={`appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 border ${errors.email ? 'border-red-500' : 'border-gray-300'} placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm`}
                                 placeholder="Enter your registered email"
                             />
+                            {errors.email && <p className="mt-1 text-xs text-red-500 font-medium">{errors.email}</p>}
                         </div>
                     </div>
 
