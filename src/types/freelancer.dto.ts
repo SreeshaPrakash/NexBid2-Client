@@ -1,4 +1,6 @@
 export interface FreelancerProfileDTO {
+    name?: string;
+    email?: string;
     title: string;
     bio: string;
     skills: string[];
@@ -6,5 +8,13 @@ export interface FreelancerProfileDTO {
     education?: any[]; // details can be refined later
     hourlyRate?: number;
     contactNumber?: string;
-    portfolio?: string[];
+    phone?: string | number;
+    country?: string;
+    state?: string;
+    gitHubUrl?: string;
+    linkedinUrl?: string;
+    portfolio?: string;
+    previousWorks?: string[];
+    experienceInYears?: number;
+    portfolioImage?: string;
 }
