@@ -2,7 +2,7 @@ import React from "react";
 import FreelancerDashboard from "../components/freelancer/FreelancerDashboard";
 import FreelancerProfile from "../pages/freelancer/FreelancerProfile";
 import FreelancerProfileForm from "../pages/freelancer/FreelancerProfileForm";
-import FreelancerLayout from "../layouts/FreelancerLayout"; 
+import FreelancerLayout from "../layouts/FreelancerLayout";
 
 export const freelancerRoutes = [
   {

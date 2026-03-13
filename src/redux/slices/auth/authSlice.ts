@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-interface   User {
+interface User {
   id: string;
   email: string;
   name: string;
@@ -59,20 +59,30 @@ const authSlice = createSlice({
       localStorage.removeItem('activeRole');
       localStorage.removeItem('hasFreelancerProfile');
     },
-    setActiveRole: (state, action: PayloadAction<{ role: string, hasProfile?: boolean, accessToken?: string }>) => {
+    setActiveRole: (state, action: PayloadAction<{ role: string, hasProfile?: boolean, accessToken?: string, user?: User }>) => {
       const role = action.payload.role;
       state.activeRole = role;
+      localStorage.setItem('activeRole', role);
 
       if (action.payload.accessToken) {
         state.accessToken = action.payload.accessToken;
         localStorage.setItem('accessToken', action.payload.accessToken);
       }
 
+      if (action.payload.user) {
+        state.user = action.payload.user;
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+      } else if (state.user && !state.user.roles.includes(role)) {
+        // Fallback: If no user object is provided, ensure the new role is at least in the roles array
+        // This prevents unauthorized errors when switching to a first-time role
+        state.user.roles = [...state.user.roles, role];
+        localStorage.setItem('user', JSON.stringify(state.user));
+      }
+
       if (action.payload.hasProfile !== undefined) {
         state.hasFreelancerProfile = action.payload.hasProfile;
         localStorage.setItem('hasFreelancerProfile', String(action.payload.hasProfile));
       }
-      // localStorage.setItem('activeRole', role);
     },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {

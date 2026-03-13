@@ -1,62 +1,109 @@
-
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Briefcase, FileText, CreditCard, LayoutDashboard, Send } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { User, Briefcase, FileText, CreditCard, LayoutDashboard, Send, Settings, LogOut } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import type { RootState } from '../../redux/store';
+import { logout as logoutAction } from '../../redux/slices/auth/authSlice';
+import { logout as logoutApi } from '../../services/authService';
+import toast from 'react-hot-toast';
 
 const FreelancerSidebar: React.FC = () => {
+    const { user } = useSelector((state: RootState) => state.auth);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+
     const navItems = [
-        { path: '/FreelancerDashboard', icon: <LayoutDashboard className="h-5 w-5" />, label: 'Dashboard' },
-        { path: '/freelancer/profile', icon: <Briefcase className="h-5 w-5" />, label: 'Profile' },
-        { path: '/freelancer/bids', icon: <FileText className="h-5 w-5" />, label: 'Bids' },
-        { path: '/freelancer/mybids', icon: <Send className="h-5 w-5" />, label: 'My Bids' },
-        { path: '/freelancer/myprojects', icon: <Briefcase className="h-5 w-5" />, label: 'My Projects' },
-        { path: '/freelancer/transactions', icon: <CreditCard className="h-5 w-5" />, label: 'Transactions' },
+        { path: '/home', icon: LayoutDashboard, label: 'Dashboard' },
+        { path: '/freelancer/profile', icon: User, label: 'My Profile' },
+        { path: '/freelancer/bids', icon: FileText, label: 'Bids' },
+        { path: '/freelancer/mybids', icon: Send, label: 'My Bids' },
+        { path: '/freelancer/myprojects', icon: Briefcase, label: 'My Projects' },
+        { path: '/freelancer/transactions', icon: CreditCard, label: 'Transactions' },
     ];
 
-    return (
-        <aside className="w-64 bg-white border-r border-slate-200 min-h-[calc(100vh-64px)] fixed left-0 top-[64px] overflow-y-auto hidden md:block z-10">
-            <div className="p-6">
-                <nav className="space-y-2">
-                    {navItems.map((item) => (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
-                            className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
-                                    isActive
-                                        ? 'bg-slate-900 text-white shadow-md shadow-slate-200'
-                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                                }`
-                            }
-                        >
-                            {item.icon}
-                            {item.label}
-                        </NavLink>
-                    ))}
+    const handleLogout = async () => {
+        try { await logoutApi(); } catch (_) {}
+        dispatch(logoutAction());
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('activeRole');
+        navigate('/');
+        toast.success('Logged out successfully');
+    };
 
-                    {/* Reserved Space for Upcoming */}
-                    {/* <div className="px-4 py-3 mt-8 border-t border-slate-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Upcoming Features</p>
-                        <div className="space-y-3 opacity-50 grayscale pointer-events-none">
-                             <div className="flex items-center gap-3 px-2 py-2 text-slate-500 font-semibold">
-                                <div className="h-5 w-5 rounded bg-slate-200"></div>
-                                Messages
-                            </div>
-                            <div className="flex items-center gap-3 px-2 py-2 text-slate-500 font-semibold">
-                                <div className="h-5 w-5 rounded bg-slate-200"></div>
-                                Analytics
-                            </div>
-                        </div>
-                    </div> */}
-                </nav>
+    return (
+        <aside
+            className="w-64 fixed left-0 top-[64px] bottom-0 overflow-y-auto hidden md:flex flex-col z-10"
+            style={{
+                background: '#0A0A0F',
+                borderRight: '1px solid rgba(255,255,255,0.05)',
+            }}
+        >
+            {/* User Info */}
+            <div className="px-5 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                <div className="flex items-center gap-3">
+                    <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold text-black flex-shrink-0"
+                        style={{ background: 'linear-gradient(135deg, #818CF8 0%, #3B82F6 100%)' }}
+                    >
+                        {user?.name?.charAt(0).toUpperCase() || 'F'}
+                    </div>
+                    <div className="overflow-hidden">
+                        <p className="text-sm font-bold text-white truncate">{user?.name || 'Freelancer'}</p>
+                        <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest">Freelancer</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Nav Links */}
+            <nav className="flex-1 px-3 py-4 space-y-1">
+                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] px-3 mb-3">Menu</p>
+                {navItems.map(({ path, icon: Icon, label }) => (
+                    <NavLink
+                        key={path}
+                        to={path}
+                        className={({ isActive }) =>
+                            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                                isActive
+                                    ? 'text-white'
+                                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                            }`
+                        }
+                        style={({ isActive }) =>
+                            isActive
+                                ? {
+                                    background: 'rgba(129,140,248,0.1)',
+                                    borderLeft: '2px solid #818CF8',
+                                    paddingLeft: '10px',
+                                }
+                                : {}
+                        }
+                    >
+                        <Icon style={{ width: 18, height: 18 }} className="flex-shrink-0" />
+                        {label}
+                    </NavLink>
+                ))}
+            </nav>
+
+            {/* Bottom Actions */}
+            <div className="px-3 pb-6 space-y-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                <NavLink
+                    to="/freelancer/profile/edit"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white hover:bg-white/5 transition-all"
+                >
+                    <Settings style={{ width: 18, height: 18 }} className="flex-shrink-0" />
+                    Settings
+                </NavLink>
+                <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-400/70 hover:text-red-400 hover:bg-red-500/5 transition-all"
+                >
+                    <LogOut style={{ width: 18, height: 18 }} className="flex-shrink-0" />
+                    Logout
+                </button>
             </div>
         </aside>
     );
 };
 
 export default FreelancerSidebar;
-
-
-
-
-

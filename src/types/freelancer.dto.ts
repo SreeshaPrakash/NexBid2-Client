@@ -17,4 +17,5 @@ export interface FreelancerProfileDTO {
     previousWorks?: string[];
     experienceInYears?: number;
     portfolioImage?: string;
+    profileImage?: string;
 }

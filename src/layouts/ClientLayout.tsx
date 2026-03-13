@@ -9,12 +9,12 @@ interface ClientLayoutProps {
 
 const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {
     return (
-        <div className="min-h-screen flex flex-col bg-[#fbfcfd]">
+        <div className="min-h-screen flex flex-col bg-[#08080C] text-white">
             <Navbar />
             <div className="flex flex-grow mt-[64px]">
                 {/* Fixed Sidebar */}
                 <ClientSidebar />
-                
+
                 {/* Main Content Area - Offset by sidebar width on desktop */}
                 <main className="flex-grow md:ml-64 w-full relative min-h-full">
                     {children}

@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, User, Globe, Link as LinkIcon, Plus, X, ArrowRight, ShieldCheck, ArrowLeft, Camera, Phone, Mail } from 'lucide-react';
+import { Briefcase, User, Globe, Link as LinkIcon, Plus, X, ArrowRight, ShieldCheck, ArrowLeft, Camera, Phone, Mail, Eye } from 'lucide-react';
 import { createProfile, getProfile, updateProfile } from '../../services/freelancerService';
-import { useDispatch } from 'react-redux';
+import { uploadToS3 } from '../../services/s3Service';
+import { useDispatch, useSelector } from 'react-redux';
 import { setActiveRole, updateUser } from '../../redux/slices/auth/authSlice';
+import { getClientProfile, updateClientProfile } from '../../services/clientService';
+import type { RootState } from '../../redux/store';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import toast from 'react-hot-toast';
@@ -12,11 +15,21 @@ import type { FreelancerProfileDTO } from '../../types/freelancer.dto';
 const FreelancerProfileForm: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    const { user } = useSelector((state: RootState) => state.auth);
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
     const [skillInput, setSkillInput] = useState('');
     const [portfolioInput, setPortfolioInput] = useState('');
+    const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [viewingImage, setViewingImage] = useState<string | null>(null);
+
+    const isVideo = (url: string) => {
+        return url.match(/\.(mp4|webm|ogg|mov)$/i) !== null;
+    };
     const [formData, setFormData] = useState<FreelancerProfileDTO>({
         name: '',
         email: '',
@@ -35,36 +48,69 @@ const FreelancerProfileForm: React.FC = () => {
     });
 
     useEffect(() => {
-        const fetchExistingProfile = async () => {
+        if (selectedFile) {
+            const url = URL.createObjectURL(selectedFile);
+            setPreviewUrl(url);
+            return () => URL.revokeObjectURL(url);
+        }
+    }, [selectedFile]);
+
+    useEffect(() => {
+        const fetchProfileData = async () => {
             try {
-                const response = await getProfile();
-                if (response.success && response.data) {
-                    setFormData({
-                        name: response.data.name || '',
-                        email: response.data.email || '',
-                        title: response.data.title || '',
-                        bio: response.data.bio || '',
-                        skills: response.data.skills || [],
-                        hourlyRate: response.data.hourlyRate || 0,
-                        experienceInYears: response.data.experienceInYears || 0,
-                        phone: response.data.phone || '',
-                        country: response.data.country || '',
-                        state: response.data.state || '',
-                        gitHubUrl: response.data.gitHubUrl || '',
-                        linkedinUrl: response.data.linkedinUrl || '',
-                        portfolio: response.data.portfolio || '',
-                        previousWorks: response.data.previousWorks || []
-                    });
+                // Fetch independently to prevent one failure from blocking the other
+                let clientData = null;
+                let freelancerData = null;
+
+                try {
+                    const clientResp = await getClientProfile();
+                    if (clientResp.success) clientData = clientResp.data;
+                } catch (e) {
+                    console.error('Client profile fetch failed', e);
+                }
+
+                try {
+                    const freelancerResp = await getProfile();
+                    if (freelancerResp.success) freelancerData = freelancerResp.data;
+                } catch (e) {
+                    // This is expected if the freelancer profile doesn't exist yet
+                    console.log('Freelancer profile not found or fetch failed');
+                }
+
+                if (freelancerData) {
                     setIsEditMode(true);
+                    setFormData(prev => ({
+                        ...prev,
+                        ...freelancerData,
+                        // Priority: Freelancer Data -> Client Data -> User State -> Empty
+                        name: freelancerData.name || clientData?.name || user?.name || '',
+                        email: freelancerData.email || clientData?.email || user?.email || '',
+                        phone: freelancerData.phone || clientData?.phone || '',
+                        country: freelancerData.country || clientData?.country || '',
+                        state: freelancerData.state || clientData?.state || '',
+                        profileImage: freelancerData.profileImage || clientData?.profileImage || ''
+                    }));
+                } else {
+                    // Creating new profile: Use client/user data
+                    setFormData(prev => ({
+                        ...prev,
+                        name: clientData?.name || user?.name || '',
+                        email: clientData?.email || user?.email || '',
+                        phone: clientData?.phone || '',
+                        country: clientData?.country || '',
+                        state: clientData?.state || '',
+                        profileImage: clientData?.profileImage || ''
+                    }));
                 }
             } catch (error) {
-                console.log('No existing profile found or error fetching');
+                console.error('Critical error loading profile data:', error);
+                toast.error('Error initializing form');
             } finally {
                 setFetching(false);
             }
         };
 
-        fetchExistingProfile();
+        fetchProfileData();
     }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -115,6 +161,46 @@ const FreelancerProfileForm: React.FC = () => {
         });
     };
 
+    const handlePortfolioFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        setUploadingPortfolio(true);
+        try {
+            const uploadPromises = Array.from(files).map(async (file) => {
+                const key = await uploadToS3(file);
+                return key;
+            });
+
+            const uploadedKeys = await Promise.all(uploadPromises);
+            
+            setFormData(prev => {
+                const currentWorks = prev.previousWorks || [];
+                const newWorks = [...currentWorks];
+                
+                uploadedKeys.forEach(key => {
+                    if (!newWorks.includes(key)) {
+                        newWorks.push(key);
+                    }
+                });
+
+                return {
+                    ...prev,
+                    previousWorks: newWorks
+                };
+            });
+
+            toast.success(`${uploadedKeys.length} portfolio file(s) uploaded & added`);
+        } catch (error) {
+            console.error('Portfolio upload failed', error);
+            toast.error('Failed to upload some portfolio files');
+        } finally {
+            setUploadingPortfolio(false);
+            // Reset input value to allow selecting same files again
+            e.target.value = '';
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -125,16 +211,50 @@ const FreelancerProfileForm: React.FC = () => {
 
         setLoading(true);
         try {
+            let updatedProfileImage = formData.profileImage;
+
+            if (selectedFile) {
+                setUploading(true);
+                try {
+                    updatedProfileImage = await uploadToS3(selectedFile);
+                } catch (error) {
+                    console.error('Error uploading image:', error);
+                    toast.error('Failed to upload profile image to S3');
+                    setLoading(false);
+                    setUploading(false);
+                    return;
+                } finally {
+                    setUploading(false);
+                }
+            }
+
+            const finalData = { ...formData, profileImage: updatedProfileImage };
+
+            // Update freelancer profile
             const response = isEditMode
-                ? await updateProfile(formData)
-                : await createProfile(formData);
+                ? await updateProfile(finalData)
+                : await createProfile(finalData);
 
             if (response.success) {
+                // Update local state and clear selected file
+                setFormData(finalData);
+                setSelectedFile(null);
+
+                // Bi-directional Sync: Also update the shared fields in the client profile
+                await updateClientProfile({
+                    name: finalData.name || '',
+                    phone: String(finalData.phone || ''),
+                    country: finalData.country || '',
+                    state: finalData.state || '',
+                    email: finalData.email || '',
+                    profileImage: finalData.profileImage
+                });
+
                 if (!isEditMode) {
                     dispatch(setActiveRole({ role: 'freelancer', hasProfile: true }));
                 }
-                if (formData.name) {
-                    dispatch(updateUser({ name: formData.name }));
+                if (finalData.name) {
+                    dispatch(updateUser({ name: finalData.name }));
                 }
                 toast.success(isEditMode ? 'Profile updated successfully' : 'Profile established!');
                 navigate('/freelancer/profile');
@@ -150,62 +270,88 @@ const FreelancerProfileForm: React.FC = () => {
 
     if (fetching) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
-                <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-900 border-t-transparent"></div>
+            <div className="min-h-screen flex items-center justify-center bg-white text-slate-900">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-700 border-t-transparent"></div>
             </div>
         );
     }
 
+    const inputClasses = "w-full px-5 py-3.5 bg-white/5 border border-white/5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold text-white text-sm placeholder:text-slate-600";
+    const labelClasses = "text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1 flex items-center gap-2 mb-2";
+
     return (
-        <div className="min-h-screen flex flex-col bg-[#fbfcfd]">
+        <div className="min-h-screen flex flex-col bg-white text-slate-900">
             <Navbar />
-            <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
+            <main className="flex-grow pt-[80px] pb-12 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-4xl mx-auto">
                     {/* Header */}
                     <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
                             <button
-                                onClick={() => navigate(-1)}
-                                className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors font-bold text-xs uppercase tracking-widest mb-4 group"
+                                onClick={() => navigate('/freelancer/profile')}
+                                className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-bold text-[10px] uppercase tracking-widest mb-4 group"
                             >
                                 <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
                                 Cancel
                             </button>
-                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+                            <h1 className="text-3xl font-extrabold text-white tracking-tight">
                                 {isEditMode ? 'Edit Professional Profile' : 'Setup Your Profile'}
                             </h1>
                         </div>
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
                             <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                            <span className="text-slate-600 font-bold text-xs tracking-tight">Secure Update</span>
+                            <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Secure Update</span>
                         </div>
                     </div>
 
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         {/* Avatar Section */}
                         <div className="lg:col-span-4 space-y-6">
-                            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center">
+                            <div className="bg-[#111118] p-8 rounded-[2rem] border border-white/5 shadow-sm text-center">
                                 <div className="relative inline-block mx-auto mb-6">
-                                    <div className="h-40 w-40 rounded-3xl bg-slate-50 border border-slate-100 shadow-inner flex items-center justify-center overflow-hidden">
-                                        <User className="h-20 w-20 text-slate-200" />
-                                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                                            <Camera className="h-8 w-8 text-white" />
+                                    <div className="h-40 w-40 rounded-[2rem] bg-white/5 border border-white/5 shadow-inner flex items-center justify-center overflow-hidden group">
+                                        {previewUrl || formData.profileImage ? (
+                                            <img src={previewUrl || formData.profileImage} alt="Profile" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <User className="h-20 w-20 text-slate-700" />
+                                        )}
+                                        
+                                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
+                                            {(previewUrl || formData.profileImage) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setViewingImage(previewUrl || formData.profileImage || null); }}
+                                                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                                                    title="View Photo"
+                                                >
+                                                    <Eye className="h-5 w-5" />
+                                                </button>
+                                            )}
+                                            <label className="cursor-pointer p-2 bg-indigo-600 hover:bg-indigo-500 rounded-full text-white transition-colors shadow-lg" title="Change Photo">
+                                                <Camera className="h-5 w-5" />
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                                />
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 mb-1">Professional Avatar</h3>
-                                <p className="text-slate-400 text-xs font-medium">Add a photo to build trust</p>
+                                <h3 className="text-lg font-bold text-white mb-1">Professional Avatar</h3>
+                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-wider">Build Trust with a Photo</p>
                             </div>
                         </div>
 
                         {/* Main Interaction Fields */}
                         <div className="lg:col-span-8 space-y-6">
-                            <div className="bg-white p-8 md:p-10 rounded-[2rem] border border-slate-200 shadow-sm space-y-8">
+                            <div className="bg-[#111118] p-8 md:p-10 rounded-[2.5rem] border border-white/5 shadow-sm space-y-8">
                                 {/* Identity */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                            <User className="h-4 w-4" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-1">
+                                        <label className={labelClasses}>
+                                            <User className="h-3.5 w-3.5" />
                                             Full Name
                                         </label>
                                         <input
@@ -214,12 +360,12 @@ const FreelancerProfileForm: React.FC = () => {
                                             required
                                             value={formData.name}
                                             onChange={handleChange}
-                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                            className={inputClasses}
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                            <Mail className="h-4 w-4" />
+                                    <div className="space-y-1">
+                                        <label className={labelClasses}>
+                                            <Mail className="h-3.5 w-3.5" />
                                             Email Address
                                         </label>
                                         <input
@@ -227,16 +373,16 @@ const FreelancerProfileForm: React.FC = () => {
                                             name="email"
                                             readOnly
                                             value={formData.email}
-                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none opacity-70 cursor-not-allowed font-semibold text-slate-900 text-sm"
+                                            className={inputClasses + " opacity-50 cursor-not-allowed"}
                                         />
                                     </div>
                                 </div>
 
                                 {/* Location */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                            <Globe className="h-4 w-4" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-1">
+                                        <label className={labelClasses}>
+                                            <Globe className="h-3.5 w-3.5" />
                                             Country
                                         </label>
                                         <input
@@ -245,12 +391,12 @@ const FreelancerProfileForm: React.FC = () => {
                                             value={formData.country}
                                             onChange={handleChange}
                                             placeholder="e.g. India"
-                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                            className={inputClasses}
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                            <Globe className="h-4 w-4" />
+                                    <div className="space-y-1">
+                                        <label className={labelClasses}>
+                                            <Globe className="h-3.5 w-3.5" />
                                             State / City
                                         </label>
                                         <input
@@ -259,15 +405,15 @@ const FreelancerProfileForm: React.FC = () => {
                                             value={formData.state}
                                             onChange={handleChange}
                                             placeholder="e.g. Kerala"
-                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                            className={inputClasses}
                                         />
                                     </div>
                                 </div>
 
                                 {/* Title */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        <Briefcase className="h-4 w-4" />
+                                <div className="space-y-1">
+                                    <label className={labelClasses}>
+                                        <Briefcase className="h-3.5 w-3.5" />
                                         Professional Title
                                     </label>
                                     <input
@@ -277,14 +423,14 @@ const FreelancerProfileForm: React.FC = () => {
                                         value={formData.title}
                                         onChange={handleChange}
                                         placeholder="e.g. Full Stack Web Developer"
-                                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900"
+                                        className={inputClasses}
                                     />
                                 </div>
 
                                 {/* Bio */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        <User className="h-4 w-4" />
+                                <div className="space-y-1">
+                                    <label className={labelClasses}>
+                                        <User className="h-3.5 w-3.5" />
                                         Professional Summary
                                     </label>
                                     <textarea
@@ -294,15 +440,15 @@ const FreelancerProfileForm: React.FC = () => {
                                         value={formData.bio}
                                         onChange={handleChange}
                                         placeholder="Describe your experience and focus area..."
-                                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 resize-none"
+                                        className={inputClasses + " resize-none"}
                                     />
                                 </div>
 
                                 {/* Rate and Experience */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                            <Briefcase className="h-4 w-4" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-1">
+                                        <label className={labelClasses}>
+                                            <Briefcase className="h-3.5 w-3.5" />
                                             Exp. (Years)
                                         </label>
                                         <input
@@ -311,12 +457,12 @@ const FreelancerProfileForm: React.FC = () => {
                                             value={formData.experienceInYears}
                                             onChange={handleChange}
                                             placeholder="0"
-                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                            className={inputClasses}
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                            <Briefcase className="h-4 w-4" />
+                                    <div className="space-y-1">
+                                        <label className={labelClasses}>
+                                            <Briefcase className="h-3.5 w-3.5" />
                                             Hourly Rate (₹)
                                         </label>
                                         <input
@@ -326,19 +472,19 @@ const FreelancerProfileForm: React.FC = () => {
                                             value={formData.hourlyRate}
                                             onChange={handleChange}
                                             placeholder="0"
-                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                            className={inputClasses}
                                         />
                                     </div>
                                 </div>
 
                                 {/* External Links */}
                                 <div className="space-y-6">
-                                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2 border-b-2 border-slate-900 w-fit">Professional Presence</h3>
+                                    <h3 className="text-[10px] font-black text-white uppercase tracking-[0.3em] mb-4 pb-1 border-b border-indigo-500/30 w-fit">Professional Presence</h3>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                                <LinkIcon className="h-4 w-4" />
+                                        <div className="space-y-1">
+                                            <label className={labelClasses}>
+                                                <LinkIcon className="h-3.5 w-3.5" />
                                                 Portfolio Link
                                             </label>
                                             <input
@@ -347,12 +493,12 @@ const FreelancerProfileForm: React.FC = () => {
                                                 value={formData.portfolio}
                                                 onChange={handleChange}
                                                 placeholder="https://yourportfolio.com"
-                                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                                className={inputClasses}
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                                <Globe className="h-4 w-4" />
+                                        <div className="space-y-1">
+                                            <label className={labelClasses}>
+                                                <Globe className="h-3.5 w-3.5" />
                                                 GitHub
                                             </label>
                                             <input
@@ -361,12 +507,12 @@ const FreelancerProfileForm: React.FC = () => {
                                                 value={formData.gitHubUrl}
                                                 onChange={handleChange}
                                                 placeholder="https://github.com/..."
-                                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                                className={inputClasses}
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                                <LinkIcon className="h-4 w-4" />
+                                        <div className="space-y-1">
+                                            <label className={labelClasses}>
+                                                <LinkIcon className="h-3.5 w-3.5" />
                                                 LinkedIn
                                             </label>
                                             <input
@@ -375,12 +521,12 @@ const FreelancerProfileForm: React.FC = () => {
                                                 value={formData.linkedinUrl}
                                                 onChange={handleChange}
                                                 placeholder="https://linkedin.com/in/..."
-                                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                                className={inputClasses}
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                                <Phone className="h-4 w-4" />
+                                        <div className="space-y-1">
+                                            <label className={labelClasses}>
+                                                <Phone className="h-3.5 w-3.5" />
                                                 Phone Number
                                             </label>
                                             <input
@@ -389,7 +535,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 value={formData.phone}
                                                 onChange={handleChange}
                                                 placeholder="+91 ..."
-                                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900 text-sm"
+                                                className={inputClasses}
                                             />
                                         </div>
                                     </div>
@@ -397,34 +543,32 @@ const FreelancerProfileForm: React.FC = () => {
 
                                 {/* Skills */}
                                 <div className="space-y-4">
-                                    <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        <Plus className="h-4 w-4" />
-                                        Skill Matrix (Press Enter to add)
+                                    <label className={labelClasses}>
+                                        <Plus className="h-3.5 w-3.5" />
+                                        Skill Matrix (Press Enter)
                                     </label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={skillInput}
-                                            onChange={(e) => setSkillInput(e.target.value)}
-                                            onKeyDown={handleAddSkill}
-                                            placeholder="Add technical or creative skills"
-                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900"
-                                        />
-                                    </div>
+                                    <input
+                                        type="text"
+                                        value={skillInput}
+                                        onChange={(e) => setSkillInput(e.target.value)}
+                                        onKeyDown={handleAddSkill}
+                                        placeholder="Add technical or creative skills"
+                                        className={inputClasses}
+                                    />
 
                                     <div className="flex flex-wrap gap-2">
                                         {formData.skills.map((skill, index) => (
                                             <span
                                                 key={index}
-                                                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 group transition-all"
+                                                className="inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black bg-white/5 text-slate-300 border border-white/5 transition-all"
                                             >
                                                 {skill}
                                                 <button
                                                     type="button"
                                                     onClick={() => removeSkill(skill)}
-                                                    className="ml-2 text-slate-400 hover:text-red-500"
+                                                    className="ml-2 text-slate-500 hover:text-red-400"
                                                 >
-                                                    <X className="h-3.5 w-3.5" />
+                                                    <X className="h-3 w-3" />
                                                 </button>
                                             </span>
                                         ))}
@@ -433,55 +577,82 @@ const FreelancerProfileForm: React.FC = () => {
 
                                 {/* Portfolio Media */}
                                 <div className="space-y-4">
-                                    <label className="text-xs font-bold text-slate-900 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        <Plus className="h-4 w-4" />
-                                        Portfolio Media URLs (Press Enter to add)
+                                    <label className={labelClasses}>
+                                        <Plus className="h-3.5 w-3.5" />
+                                        Portfolio Media URLs (Press Enter)
                                     </label>
-                                    <div className="relative">
-                                        <input
-                                            type="url"
-                                            value={portfolioInput}
-                                            onChange={(e) => setPortfolioInput(e.target.value)}
-                                            onKeyDown={handleAddPortfolio}
-                                            placeholder="Add image or video URLs of your past work"
-                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-semibold text-slate-900"
-                                        />
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-grow">
+                                            <input
+                                                type="url"
+                                                value={portfolioInput}
+                                                onChange={(e) => setPortfolioInput(e.target.value)}
+                                                onKeyDown={handleAddPortfolio}
+                                                placeholder="Add image or video URLs (Press Enter)"
+                                                className={inputClasses}
+                                            />
+                                        </div>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                multiple={true}
+                                                accept="image/*,video/*"
+                                                onChange={handlePortfolioFileUpload}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                disabled={uploadingPortfolio}
+                                            />
+                                            <div className={`h-full px-6 py-3.5 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 text-slate-300 font-bold text-[10px] uppercase tracking-wider hover:bg-white/10 transition-all ${uploadingPortfolio ? 'opacity-50' : ''}`}>
+                                                {uploadingPortfolio ? (
+                                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                                ) : <Plus className="h-3.5 w-3.5" />}
+                                                {uploadingPortfolio ? 'Uploading...' : 'Upload File'}
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                         {formData.previousWorks?.map((item: string, index: number) => (
                                             <div
                                                 key={index}
-                                                className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 group"
+                                                className="group relative aspect-video bg-[#181820] rounded-xl overflow-hidden border border-white/5 hover:border-indigo-500/30 transition-all cursor-pointer"
+                                                onClick={() => setViewingImage(item)}
                                             >
-                                                <span className="text-xs font-bold text-slate-600 truncate max-w-[150px]">
-                                                    {item}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removePortfolioItem(item)}
-                                                    className="text-slate-400 hover:text-red-500 transition-colors"
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </button>
+                                                {isVideo(item) ? (
+                                                    <video src={item} className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" muted />
+                                                ) : (
+                                                    <img src={item} alt={`Portfolio ${index + 1}`} className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                                )}
+                                                
+                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); removePortfolioItem(item); }}
+                                                        className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-lg"
+                                                    >
+                                                        <X className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
 
                                 {/* Form Submit Section */}
-                                <div className="pt-6 flex flex-col sm:flex-row gap-4">
+                                <div className="pt-6">
                                     <button
                                         type="submit"
-                                        disabled={loading}
-                                        className="flex-grow flex items-center justify-center gap-2 py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-70"
+                                        disabled={loading || uploading}
+                                        className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-indigo-500 transition-all active:scale-[0.98] disabled:opacity-50 shadow-xl shadow-indigo-900/20"
                                     >
-                                        {loading ? (
-                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                        {loading || uploading ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                                <span>{uploading ? 'Uploading Image...' : 'Saving Changes...'}</span>
+                                            </div>
                                         ) : (
                                             <>
-                                                {isEditMode ? 'Update Profile' : 'Setup Profile'}
-                                                <ArrowRight className="h-5 w-5" />
+                                                {isEditMode ? 'Update Profile' : 'Establish Profile'}
+                                                <ArrowRight className="h-4 w-4" />
                                             </>
                                         )}
                                     </button>
@@ -492,6 +663,36 @@ const FreelancerProfileForm: React.FC = () => {
                 </div>
             </main>
             <Footer />
+
+            {/* Image Viewing Modal */}
+            {viewingImage && (
+                <div 
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
+                    onClick={() => setViewingImage(null)}
+                >
+                    <button
+                        onClick={() => setViewingImage(null)}
+                        className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-[101]"
+                    >
+                        <X className="h-6 w-6" />
+                    </button>
+                    {viewingImage && isVideo(viewingImage) ? (
+                        <video 
+                            src={viewingImage} 
+                            controls
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+                    ) : (
+                        <img 
+                            src={viewingImage} 
+                            alt="Enlarged view" 
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+                    )}
+                </div>
+            )}
         </div>
     );
 };

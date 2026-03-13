@@ -13,7 +13,6 @@ import AdminLoginPage from "../pages/auth/AdminLoginPage";
 export const commonRoutes = [
   { path: "/", element: <LandingPage /> },
   { path: "/home", element: <HomePage /> },
-  { path: "/freelancer/setup-profile", element: <FreelancerProfileForm /> },
   { path: "/signup", element: <SignupPage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/admin/login", element: <AdminLoginPage /> },
