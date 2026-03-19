@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { forgotPassword } from '../../services/authService';
 import { forgotPasswordSchema } from '../../validations/zodSchemas';
 import toast from 'react-hot-toast';
+import { UserRoute } from '../../constants/routeConstansts';
+
 
 const ForgotPassword: React.FC = () => {
     const navigate = useNavigate();
@@ -40,7 +42,7 @@ const ForgotPassword: React.FC = () => {
         try {
             await forgotPassword(email);
             toast.success("OTP sent to your email");
-            navigate('/reset-password', { state: { email } });
+            navigate(`/${UserRoute.RESET_PASSWORD}`, { state: { email } });
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Failed to send OTP");
         } finally {
@@ -100,7 +102,7 @@ const ForgotPassword: React.FC = () => {
                 <div className="text-center mt-6">
                     <p className="text-sm text-gray-600">
                         Remember your password?{' '}
-                        <Link to="/login" className="font-medium text-teal-600 hover:text-teal-500 hover:underline">
+                        <Link to={`/${UserRoute.LOGIN}`} className="font-medium text-teal-600 hover:text-teal-500 hover:underline">
                             Login here
                         </Link>
                     </p>

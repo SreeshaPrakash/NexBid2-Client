@@ -4,11 +4,11 @@ import LandingPage from "../pages/common/LandingPage";
 import HomePage from "../pages/common/HomePage";
 import SignupPage from "../pages/auth/SignupPage";
 import LoginPage from "../pages/auth/LoginPage";
+import AdminLoginPage from "../pages/auth/AdminLoginPage";
 import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
 import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
-import FreelancerProfileForm from "../pages/freelancer/FreelancerProfileForm";
-import AdminLoginPage from "../pages/auth/AdminLoginPage";
+import Unauthorized from "../pages/common/Unauthorized";
 
 export const commonRoutes = [
   { path: "/", element: <LandingPage /> },
@@ -19,5 +19,5 @@ export const commonRoutes = [
   { path: "/verify-otp", element: <VerifyOtpPage /> },
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
   { path: "/reset-password", element: <ResetPasswordPage /> },
-  // { path: "/unauthorized", element: <Unauthorized /> },
+  { path: "/unauthorized", element: <Unauthorized/> },
 ];

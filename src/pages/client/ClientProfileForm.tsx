@@ -10,6 +10,8 @@ import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import toast from 'react-hot-toast';
 import type { ClientProfileDTO } from '../../types/client.dto';
+import { clientProfileSchema } from '../../validations/zodSchemas';
+import { ClientRoute } from '../../constants/routeConstansts';
 
 const ClientProfileForm: React.FC = () => {
     const navigate = useNavigate();
@@ -19,6 +21,7 @@ const ClientProfileForm: React.FC = () => {
     const [fetching, setFetching] = useState(true);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState<ClientProfileDTO>({
         name: '',
         email: '',
@@ -69,6 +72,20 @@ const ClientProfileForm: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const validationResult = clientProfileSchema.safeParse(formData);
+        if (!validationResult.success) {
+            const newErrors: Record<string, string> = {};
+            validationResult.error.issues.forEach(issue => {
+                if (issue.path[0]) {
+                    newErrors[issue.path[0].toString()] = issue.message;
+                }
+            });
+            setErrors(newErrors);
+            return;
+        }
+        setErrors({});
+
         setLoading(true);
         try {
             let updatedProfileImage = formData.profileImage;
@@ -120,7 +137,7 @@ const ClientProfileForm: React.FC = () => {
                     dispatch(updateUser({ name: finalData.name }));
                 }
                 toast.success('Profile updated successfully');
-                navigate('/client/profile');
+                navigate(`/${ClientRoute.PROFILE}`);
             } else {
                 toast.error(response.message || 'Update failed');
             }
@@ -151,7 +168,7 @@ const ClientProfileForm: React.FC = () => {
                     <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
                             <button
-                                onClick={() => navigate('/client/profile')}
+                                onClick={() => navigate(`/${ClientRoute.PROFILE}`)}
                                 className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-bold text-[10px] uppercase tracking-widest mb-4 group"
                             >
                                 <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
@@ -226,6 +243,7 @@ const ClientProfileForm: React.FC = () => {
                                             className={inputClasses}
                                             placeholder="John Doe"
                                         />
+                                        {errors.name && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.name}</p>}
                                     </div>
 
                                     {/* Email Field - Disabled */}
@@ -250,6 +268,7 @@ const ClientProfileForm: React.FC = () => {
                                             className={inputClasses}
                                             placeholder="+1 234 567 890"
                                         />
+                                        {errors.phone && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.phone}</p>}
                                     </div>
 
                                     <div className="hidden sm:block"></div>
@@ -265,6 +284,7 @@ const ClientProfileForm: React.FC = () => {
                                             className={inputClasses}
                                             placeholder="United States"
                                         />
+                                        {errors.country && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.country}</p>}
                                     </div>
 
                                     {/* State Field */}
@@ -278,6 +298,7 @@ const ClientProfileForm: React.FC = () => {
                                             className={inputClasses}
                                             placeholder="California"
                                         />
+                                        {errors.state && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.state}</p>}
                                     </div>
                                 </div>
 

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Briefcase, CheckCircle, Globe, Link as LinkIcon, BookOpen, Mail, Phone, ExternalLink, X, Eye } from 'lucide-react';
-import { getProfile } from '../../services/freelancerService';
+import { User, Briefcase, CheckCircle, Globe, Link as LinkIcon, BookOpen, Mail, Phone, ExternalLink, X, Eye, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
+import { getProfile, requestVerification } from '../../services/freelancerService';
 import toast from 'react-hot-toast';
 
 const FreelancerProfile: React.FC = () => {
     const navigate = useNavigate();
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [requestingVerification, setRequestingVerification] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
 
     const isVideo = (url: string) => {
@@ -33,6 +34,24 @@ const FreelancerProfile: React.FC = () => {
 
         fetchProfile();
     }, []);
+
+    const handleRequestVerification = async () => {
+        try {
+            setRequestingVerification(true);
+            const response = await requestVerification();
+            if (response.success) {
+                toast.success('Verification request submitted successfully!');
+                setProfile({ ...profile, verificationStatus: 'pending' });
+            } else {
+                toast.error(response.message || 'Failed to request verification');
+            }
+        } catch (error: any) {
+            console.error('Error requesting verification:', error);
+            toast.error(error.response?.data?.message || 'Error requesting verification');
+        } finally {
+            setRequestingVerification(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -87,7 +106,7 @@ const FreelancerProfile: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            {profile.status === 'verified' && (
+                            {profile.verificationStatus === 'verified' && (
                                 <div className="absolute bottom-2 right-2 bg-indigo-600 text-white p-2 rounded-full shadow-lg border-4 border-white">
                                     <CheckCircle className="h-5 w-5" />
                                 </div>
@@ -147,6 +166,58 @@ const FreelancerProfile: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Verification Status Banner */}
+                {(!profile.verificationStatus || profile.verificationStatus === 'unverified' || profile.verificationStatus === 'rejected') && (
+                    <div className="bg-[#111118] rounded-[2rem] p-8 shadow-sm border border-white/5 mb-6">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                            <div className="flex items-start gap-5">
+                                <div className={`p-4 rounded-2xl ${profile.verificationStatus === 'rejected' ? 'bg-red-500/10' : 'bg-indigo-500/10'}`}>
+                                    <ShieldCheck className={`h-8 w-8 ${profile.verificationStatus === 'rejected' ? 'text-red-400' : 'text-indigo-400'}`} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-white mb-2">
+                                        {profile.verificationStatus === 'rejected' ? 'Verification Denied' : 'Professional Verification'}
+                                    </h3>
+                                    <p className="text-slate-400 text-sm max-w-xl">
+                                        {profile.verificationStatus === 'rejected' 
+                                            ? <><span className="text-red-400 font-medium">Reason: </span>{profile.rejectionReason || 'Your profile did not meet the guidelines at this time.'}</>
+                                            : 'Get a verified badge to build trust with clients and stand out from the crowd. Our team will review your profile details.'
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleRequestVerification}
+                                disabled={requestingVerification}
+                                className={`px-8 py-3.5 font-bold rounded-xl transition-all shadow-lg shrink-0 flex items-center gap-2 ${
+                                    profile.verificationStatus === 'rejected'
+                                        ? 'bg-white/10 text-white hover:bg-white/20 border border-white/10 active:scale-95'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-500 active:scale-95 shadow-indigo-900/20'
+                                }`}
+                            >
+                                {requestingVerification ? (
+                                    <RefreshCw className="h-5 w-5 animate-spin" />
+                                ) : profile.verificationStatus === 'rejected' ? (
+                                    <RefreshCw className="h-5 w-5" />
+                                ) : (
+                                    <ShieldCheck className="h-5 w-5" />
+                                )}
+                                {requestingVerification ? 'Submitting...' : profile.verificationStatus === 'rejected' ? 'Re-apply Now' : 'Request Verification'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {profile.verificationStatus === 'pending' && (
+                    <div className="bg-amber-500/10 rounded-[2rem] p-8 border border-amber-500/20 mb-6 flex items-start gap-5">
+                        <Clock className="h-8 w-8 text-amber-500 shrink-0" />
+                        <div>
+                            <h3 className="text-amber-500 font-bold text-xl mb-2">Verification Processing</h3>
+                            <p className="text-amber-500/80 text-sm max-w-xl">Your profile is currently under review by our admin team. You'll be notified here once a decision is made.</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* TIER 2: Mid-Section (Remaining Field Datas) */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">

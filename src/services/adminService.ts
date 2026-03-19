@@ -22,3 +22,24 @@ export const toggleBlockStatus = async (userId: string, isBlocked: boolean) => {
     return response.data;
 };
 
+
+export const getPendingVerifications = async () => {
+    const response = await API.get('/admin/verification-requests');
+    return response.data;
+};
+
+export const getAdminFreelancerProfile = async (id: string) => {
+    const response = await API.get(`/admin/freelancer-profile/${id}`);
+    return response.data;
+};
+
+export const approveVerification = async (freelancerId: string) => {
+    const response = await API.post(`/admin/approve-verification/${freelancerId}`);
+    return response.data;
+};
+
+export const rejectVerification = async (freelancerId: string, reason: string) => {
+    const response = await API.post(`/admin/reject-verification/${freelancerId}`, { reason });
+    return response.data;
+};
+

@@ -9,7 +9,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { googleLogin } from '../../services/authService';
 import { loginSchema, isValidEmailFormat } from '../../validations/zodSchemas';
 
-const Login: React.FC = () => {
+const Login: React.FC = () => { 
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [showPassword, setShowPassword] = useState(false);

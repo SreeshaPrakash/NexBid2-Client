@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { verifyOtp, resendOtp } from '../../services/authService';
 import { resetPasswordSchema } from '../../validations/zodSchemas';
 import toast from 'react-hot-toast';
+import { UserRoute } from '../../constants/routeConstansts';
+
 
 const VerifyOtp: React.FC = () => {
     const navigate = useNavigate();
@@ -19,10 +21,10 @@ const VerifyOtp: React.FC = () => {
             setEmail(location.state.email);
         } else if (location.state?.purpose === 'reset') {
             toast.error("Email not found. Please try again.");
-            navigate('/forgot-password');
+            navigate(`/${UserRoute.FORGOT_PASSWORD}`);
         } else {
             toast.error("Email not found. Please sign up or login again.");
-            navigate('/signup');
+            navigate(`/${UserRoute.SIGNUP}`);
         }
     }, [location, navigate]);
 
@@ -80,7 +82,7 @@ const VerifyOtp: React.FC = () => {
             const response = await verifyOtp(email, otpValue);
             if (response.success) {
                 toast.success(response.message || "Email verified successfully!");
-                navigate('/login');
+                navigate(`/${UserRoute.LOGIN}`);
             } else {
                 toast.error(response.message || "Verification failed");
             }

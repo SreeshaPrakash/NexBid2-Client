@@ -7,7 +7,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../redux/slices/auth/authSlice';
 import { signupSchema, isValidEmailFormat, isPasswordComplex } from '../../validations/zodSchemas';
-
+ 
 const Signup: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();

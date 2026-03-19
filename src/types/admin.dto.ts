@@ -4,6 +4,7 @@ export interface GetUserQueryDTO {
     search?: string;
     role?: string;
     status?: string;
+    verificationStatus?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
 }

@@ -1,39 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ClipboardList, Handshake, Users, Briefcase, Code, PenTool, Edit3, Globe, Database, Video } from 'lucide-react';

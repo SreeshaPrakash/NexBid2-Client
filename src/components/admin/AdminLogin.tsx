@@ -69,7 +69,7 @@ const AdminLogin: React.FC = () => {
                 localStorage.setItem('user', JSON.stringify(response.user));
 
                 toast.success("Welcome back, Admin");
-                navigate('/dashboard');
+                navigate('/admin/dashboard');
             } else {
                 toast.error(response.message || "Access denied");
             }
@@ -164,3 +164,6 @@ const AdminLogin: React.FC = () => {
 };
 
 export default AdminLogin;
+
+
+

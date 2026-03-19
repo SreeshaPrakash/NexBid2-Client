@@ -33,3 +33,28 @@ export const isValidEmailFormat = (email: string) => {
 export const isPasswordComplex = (password: string) => {
     return passwordPattern.test(password);
 };
+
+export const clientProfileSchema = z.object({
+    name: z.string().trim().min(3, "Name must be at least 3 characters"),
+    phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format").or(z.literal('')).optional(),
+    country: z.string().min(2, "Country is required").or(z.literal('')).optional(),
+    state: z.string().min(2, "State is required").or(z.literal('')).optional(),
+    profileImage: z.string().optional()
+});
+
+export const freelancerProfileSchema = z.object({
+    name: z.string().trim().min(3, "Name must be at least 3 characters"),
+    title: z.string().trim().min(3, "Title must be at least 3 characters"),
+    bio: z.string().trim().min(10, "Summary must be at least 10 characters"),
+    experienceInYears: z.number().min(0, "Experience cannot be negative"),
+    hourlyRate: z.number().min(1, "Hourly rate must be greater than 0"),
+    country: z.string().min(2, "Country is required").or(z.literal('')).optional(),
+    state: z.string().min(2, "State/City is required").or(z.literal('')).optional(),
+    phone: z.string().regex(/^\+?[0-9\s\-]{7,15}$/, "Invalid phone number").or(z.literal('')).optional(),
+    portfolio: z.union([z.literal(''), z.string().url("Invalid URL").optional()]),
+    gitHubUrl: z.union([z.literal(''), z.string().url("Invalid URL").optional()]),
+    linkedinUrl: z.union([z.literal(''), z.string().url("Invalid URL").optional()]),
+    skills: z.array(z.string()).min(1, "At least one skill is required"),
+    previousWorks: z.array(z.string()).optional(),
+    profileImage: z.string().optional()
+});

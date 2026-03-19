@@ -4,6 +4,8 @@ import { User, Mail, Phone, MapPin, Edit3, ShieldCheck } from 'lucide-react';
 import { getClientProfile } from '../../services/clientService';
 import toast from 'react-hot-toast';
 import type { ClientProfileDTO } from '../../types/client.dto';
+import { ClientRoute, UserRoute } from '../../constants/routeConstansts';
+
 
 const ClientProfile: React.FC = () => {
     const navigate = useNavigate();
@@ -50,7 +52,7 @@ const ClientProfile: React.FC = () => {
                         <div className="bg-[#111118] p-8 rounded-2xl shadow-xl border border-white/5 text-center max-w-md w-full">
                             <h2 className="text-xl font-bold text-white mb-4">Profile Not Found</h2>
                             <button
-                                onClick={() => navigate('/home')}
+                                onClick={() => navigate(UserRoute.HOME)}
                                 className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition-all active:scale-95"
                             >
                                 Back to Home
@@ -90,7 +92,7 @@ const ClientProfile: React.FC = () => {
                                         <p className="text-slate-400 font-medium">{profile.email}</p>
                                     </div>
                                     <button
-                                        onClick={() => navigate('/client/profile/edit')}
+                                        onClick={() => navigate(`/${ClientRoute.PROFILE_EDIT}`)}
                                         className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 border border-white/10 transition-all active:scale-95 text-sm"
                                     >
                                         <Edit3 className="h-4 w-4" />

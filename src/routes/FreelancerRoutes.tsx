@@ -1,4 +1,4 @@
-import React from "react";
+
 import FreelancerDashboard from "../components/freelancer/FreelancerDashboard";
 import FreelancerProfile from "../pages/freelancer/FreelancerProfile";
 import FreelancerProfileForm from "../pages/freelancer/FreelancerProfileForm";
@@ -24,3 +24,8 @@ export const freelancerRoutes = [
   { path: "freelancer/profile/setup", element: <FreelancerProfileForm /> },
   { path: "freelancer/profile/edit", element: <FreelancerProfileForm /> },
 ];
+
+
+
+
+
