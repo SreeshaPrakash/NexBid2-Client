@@ -175,7 +175,9 @@ const Dashboard: React.FC = () => {
             const response = await toggleBlockStatus(selectedUser.id, !selectedUser.isBlocked);
             if (response.success) {
                 toast.success(`User ${selectedUser.isBlocked ? 'unblocked' : 'blocked'} successfully`);
-                fetchUsers();
+                setUsers(prevUsers => prevUsers.map(user => 
+                   user.id === selectedUser.id ? { ...user, isBlocked: !selectedUser.isBlocked } : user
+                ));
                 setIsModalOpen(false);
                 setSelectedUser(null);
             }

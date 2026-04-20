@@ -1,13 +1,14 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import type { RootState } from '../../redux/store';
+import { ProjectRoute } from '../../constants/routeConstansts';
 import {
     Briefcase,
     Clock,
     CheckCircle,
-    DollarSign,
+    IndianRupee,
     Search,
-    ChevronRight,
     Star,
     TrendingUp,
     ArrowRight,
@@ -55,7 +56,7 @@ const FreelancerDashboard: React.FC = () => {
         {
             label: 'Total Earnings',
             value: '₹1,24,500',
-            icon: DollarSign,
+            icon: IndianRupee,
             trend: 'Lifetime earnings',
             trendUp: false,
             border: 'border-amber-500/20',
@@ -129,13 +130,15 @@ const FreelancerDashboard: React.FC = () => {
                         <button className="h-11 px-5 rounded-xl bg-white/5 border border-white/10 text-white/70 font-semibold text-sm hover:bg-white/10 hover:text-white transition-all flex items-center gap-2">
                             My Bids
                         </button>
-                        <button
-                            className="h-11 px-5 rounded-xl text-white font-bold text-sm flex items-center gap-2 shadow-lg transition-all hover:opacity-90 active:scale-[0.98]"
-                            style={{ background: 'linear-gradient(135deg, #818CF8 0%, #3B82F6 100%)', boxShadow: '0 0 24px rgba(129,140,248,0.25)' }}
-                        >
-                            <Search className="h-4 w-4" />
-                            Find Projects
-                        </button>
+                        <Link to={`/${ProjectRoute.OPEN_PROJECTS}`}>
+                            <button
+                                className="h-11 px-5 rounded-xl text-white font-bold text-sm flex items-center gap-2 shadow-lg transition-all hover:opacity-90 active:scale-[0.98]"
+                                style={{ background: 'linear-gradient(135deg, #818CF8 0%, #3B82F6 100%)', boxShadow: '0 0 24px rgba(129,140,248,0.25)' }}
+                            >
+                                <Search className="h-4 w-4" />
+                                Find Projects
+                            </button>
+                        </Link>
                     </div>
                 </div>
 
@@ -186,9 +189,12 @@ const FreelancerDashboard: React.FC = () => {
                                     <h2 className="text-base font-bold text-white">Recommended for You</h2>
                                     <p className="text-xs text-white/30 mt-0.5">Matched to your skills</p>
                                 </div>
-                                <button className="flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors group">
-                                    Browse All <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-                                </button>
+                                <Link
+                                    to={ProjectRoute.OPEN_PROJECTS}
+                                    className="text-xs font-bold text-indigo-500 hover:text-indigo-400 transition-colors uppercase tracking-widest"
+                                >
+                                    Browse All
+                                </Link>
                             </div>
 
                             <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>

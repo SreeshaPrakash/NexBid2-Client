@@ -1,11 +1,11 @@
-import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { User, Briefcase, FileText, CreditCard, LayoutDashboard, Send, Settings, LogOut } from 'lucide-react';
+import { User, Briefcase, CreditCard, LayoutDashboard, Send, Settings, LogOut } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../../redux/store';
 import { logout as logoutAction } from '../../redux/slices/auth/authSlice';
 import { logout as logoutApi } from '../../services/authService';
 import toast from 'react-hot-toast';
+import { ProjectRoute } from '../../constants/routeConstansts';
 
 const FreelancerSidebar: React.FC = () => {
     const { user } = useSelector((state: RootState) => state.auth);
@@ -15,9 +15,8 @@ const FreelancerSidebar: React.FC = () => {
     const navItems = [
         { path: '/home', icon: LayoutDashboard, label: 'Dashboard' },
         { path: '/freelancer/profile', icon: User, label: 'My Profile' },
-        { path: '/freelancer/bids', icon: FileText, label: 'Bids' },
         { path: '/freelancer/mybids', icon: Send, label: 'My Bids' },
-        { path: '/freelancer/myprojects', icon: Briefcase, label: 'My Projects' },
+        { path: ProjectRoute.OPEN_PROJECTS, icon: Briefcase, label: 'Open Projects' },
         { path: '/freelancer/transactions', icon: CreditCard, label: 'Transactions' },
     ];
 
@@ -39,7 +38,6 @@ const FreelancerSidebar: React.FC = () => {
                 borderRight: '1px solid rgba(255,255,255,0.05)',
             }}
         >
-            {/* User Info */}
             <div className="px-5 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
                 <div className="flex items-center gap-3">
                     <div
@@ -55,7 +53,6 @@ const FreelancerSidebar: React.FC = () => {
                 </div>
             </div>
 
-            {/* Nav Links */}
             <nav className="flex-1 px-3 py-4 space-y-1">
                 <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] px-3 mb-3">Menu</p>
                 {navItems.map(({ path, icon: Icon, label }) => (
@@ -85,7 +82,6 @@ const FreelancerSidebar: React.FC = () => {
                 ))}
             </nav>
 
-            {/* Bottom Actions */}
             <div className="px-3 pb-6 space-y-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)', paddingTop: 16 }}>
                 <NavLink
                     to="/freelancer/profile/edit"

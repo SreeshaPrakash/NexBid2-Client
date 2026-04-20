@@ -6,7 +6,7 @@ import {
     PlusCircle,
     Briefcase,
     Users,
-    DollarSign,
+    IndianRupee,
     TrendingUp,
     Clock,
     ArrowRight,
@@ -15,6 +15,7 @@ import {
     Star
 } from 'lucide-react';
 import ClientSidebar from './ClientSidebar';
+import { ProjectRoute, ClientRoute } from '../../constants/routeConstansts';
 
 const ClientDashboard: React.FC = () => {
     const { user } = useSelector((state: RootState) => state.auth);
@@ -55,8 +56,8 @@ const ClientDashboard: React.FC = () => {
         },
         {
             label: 'Total Spent',
-            value: '$12,500',
-            icon: DollarSign,
+            value: '₹12,500',
+            icon: IndianRupee,
             trend: 'Lifetime spend',
             trendUp: false,
             gradient: 'from-amber-500/20 to-orange-500/10',
@@ -67,9 +68,9 @@ const ClientDashboard: React.FC = () => {
     ];
 
     const recentProjects = [
-        { id: 1, title: 'E-commerce Website Development', status: 'active', bids: 12, budget: '$5,000–$10,000', postedDate: '2 days ago' },
-        { id: 2, title: 'Mobile App UI/UX Design', status: 'reviewing', bids: 8, budget: '$2,000–$4,000', postedDate: '5 days ago' },
-        { id: 3, title: 'Content Writing for Blog', status: 'completed', bids: 4, budget: '$500–$1,000', postedDate: '1 week ago' },
+        { id: 1, title: 'E-commerce Website Development', status: 'active', bids: 12, budget: '₹5,000–₹10,000', postedDate: '2 days ago' },
+        { id: 2, title: 'Mobile App UI/UX Design', status: 'reviewing', bids: 8, budget: '₹2,000–₹4,000', postedDate: '5 days ago' },
+        { id: 3, title: 'Content Writing for Blog', status: 'completed', bids: 4, budget: '₹500–₹1,000', postedDate: '1 week ago' },
     ];
 
     const getStatusStyle = (status: string) => {
@@ -174,7 +175,7 @@ const ClientDashboard: React.FC = () => {
                                     <p className="text-xs text-white/30 mt-0.5">Your latest postings</p>
                                 </div>
                                 <Link
-                                    to="/client/projects"
+                                    to={`/${ProjectRoute.MY_PROJECTS}`}
                                     className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors group"
                                 >
                                     View all <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -199,7 +200,7 @@ const ClientDashboard: React.FC = () => {
                                                     </div>
                                                     <div className="flex flex-wrap gap-4 text-xs text-white/35 font-medium">
                                                         <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{project.bids} Bids</span>
-                                                        <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5" />{project.budget}</span>
+                                                        <span className="flex items-center gap-1.5"><IndianRupee className="h-3.5 w-3.5" />{project.budget}</span>
                                                         <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{project.postedDate}</span>
                                                     </div>
                                                 </div>
@@ -277,12 +278,12 @@ const ClientDashboard: React.FC = () => {
                             style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}
                         >
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-2">Quick Actions</p>
-                            <Link to="/client/profile">
+                            <Link to={`/${ClientRoute.PROFILE}`}>
                                 <button className="w-full h-10 text-xs font-bold uppercase tracking-wider text-white/70 border border-white/10 rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center justify-center gap-2">
                                     <Users className="h-4 w-4" /> View Profile
                                 </button>
                             </Link>
-                            <Link to="/client/profile/edit">
+                            <Link to={`/${ClientRoute.PROFILE_EDIT}`}>
                                 <button className="w-full h-10 text-xs font-bold uppercase tracking-wider text-white/70 border border-white/10 rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center justify-center gap-2 mt-2">
                                     <Briefcase className="h-4 w-4" /> Edit Profile
                                 </button>

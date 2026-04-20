@@ -7,6 +7,11 @@ import { commonRoutes } from "./routes/commonRoutes";
 import { adminRoutes } from "./routes/AdminRoutes";
 import { clientRoutes } from "./routes/ClientRoutes";
 import { freelancerRoutes } from "./routes/FreelancerRoutes";
+import ProjectDetailLayout from "./layouts/ProjectDetailLayout";
+import ProjectDetailWrapper from "./layouts/ProjectDetailWrapper";
+import ProjectDetails from "./pages/common/ProjectDetails";
+import ProjectProposals from "./pages/common/ProjectProposals";
+import { Navigate } from "react-router-dom";
 
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "react-hot-toast";
@@ -38,22 +43,34 @@ function App() {
           ))}
 
           <Route element={<ProtectedRoute />}>
+            {/* Admin Routes */}
             <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
               {adminRoutes.map((route) => (
                 <Route key={route.path} path={route.path} element={route.element} />
               ))}
             </Route>
 
+            {/* Client Routes */}
             <Route element={<RoleProtectedRoute allowedRoles={["client"]} />}>
               {clientRoutes.map((route) => (
                 <Route key={route.path} path={route.path} element={route.element} />
               ))}
             </Route>
 
+            {/* Freelancer Routes */}
             <Route element={<RoleProtectedRoute allowedRoles={["freelancer"]} />}>
               {freelancerRoutes.map((route) => (
                 <Route key={route.path} path={route.path} element={route.element} />
               ))}
+            </Route>
+
+            {/* Project Detail Routes (Shared) - Wrapped in Role-specific Layout */}
+            <Route element={<ProjectDetailWrapper />}>
+              <Route path="/projects/:projectId" element={<ProjectDetailLayout />}>
+                <Route index element={<Navigate to="details" replace />} />
+                <Route path="details" element={<ProjectDetails />} />
+                <Route path="proposals" element={<ProjectProposals />} />
+              </Route>
             </Route>
           </Route>
         </Routes>

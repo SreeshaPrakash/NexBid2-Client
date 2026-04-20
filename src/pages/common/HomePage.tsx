@@ -13,7 +13,7 @@ const HomePage: React.FC = () => {
 
     React.useEffect(() => {
         if (user && activeRole === 'freelancer' && hasFreelancerProfile === false) {
-            navigate('/freelancer/setup-profile');
+            navigate('/freelancer/profile/setup');
         }
     }, [user, activeRole, hasFreelancerProfile, navigate]);
 
@@ -37,3 +37,4 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+

@@ -7,7 +7,14 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../redux/store';
 import { logout as logoutAction, setActiveRole } from '../../redux/slices/auth/authSlice';
 import { switchRole as switchRoleApi, logout as logoutApi } from '../../services/authService';
-import { Menu, X, Briefcase, User, LogOut, ArrowLeftRight, Shield } from 'lucide-react';
+import { 
+    Menu, 
+    X, 
+    User, 
+    LogOut, 
+    ArrowLeftRight, 
+    Shield
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Navbar: React.FC = () => {

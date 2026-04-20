@@ -58,3 +58,16 @@ export const freelancerProfileSchema = z.object({
     previousWorks: z.array(z.string()).optional(),
     profileImage: z.string().optional()
 });
+
+import { ProjectVisibility } from "../constants/projectConstants";
+
+export const projectSchema = z.object({
+    title: z.string().trim().min(5, "Title must be at least 5 characters").max(100, "Title too long"),
+    description: z.string().trim().min(20, "Description must be at least 20 characters"),
+    budget: z.number().min(1, "Budget must be at least 1"),
+    skillsRequired: z.array(z.string()).min(1, "At least one skill is required"),
+    biddingDeadline: z.string().min(1, "Bidding deadline is required"),
+    deadline: z.string().optional().nullable(),
+    visibility: z.nativeEnum(ProjectVisibility).default(ProjectVisibility.PUBLIC),
+    attachments: z.array(z.string()).optional(),
+});
