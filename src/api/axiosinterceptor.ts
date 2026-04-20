@@ -7,16 +7,23 @@
 
 import API from "./axiosInstance";
 import { logout, setCredentials } from "../redux/slices/auth/authSlice";
+import { adminLogout, setAdminCredentials } from "../redux/slices/admin/adminAuthSlice";
 import type { AxiosError, InternalAxiosRequestConfig } from "axios";
 import type { RootState, AppDispatch } from './../redux/store';
 
 export const setupAxiosInterceptors = (store: { getState: () => RootState; dispatch: AppDispatch }) => {
   // Helper to get token safely from typed Redux state
-  const getToken = () => (store.getState() as RootState).auth.accessToken;
+  const getToken = (url?: string) => {
+    const state = store.getState() as RootState;
+    if (url?.includes('/admin')) {
+      return state.adminAuth.accessToken;
+    }
+    return state.auth.accessToken;
+  };
 
   API.interceptors.request.use(
     (config) => {
-      const token = getToken();
+      const token = getToken(config.url);
       if (token && config.headers) {
         config.headers["Authorization"] = `Bearer ${token}`;
       }
@@ -32,15 +39,23 @@ export const setupAxiosInterceptors = (store: { getState: () => RootState; dispa
         _retry?: boolean;
       };
 
-      const isLoginRequest = originalRequest?.url?.includes("/login");
-      const isRefreshRequest = originalRequest?.url?.includes("/refresh-token");
-      const isLoginPage = window.location.pathname === "/login";
+      const url = originalRequest?.url || "";
+      const isAdminRequest = url.includes("/admin");
+      
+      const isLoginRequest = url.includes("/login");
+      const isRefreshRequest = url.includes("/refresh-token");
+      const isLoginPage = window.location.pathname === "/login" || window.location.pathname === "/admin/login";
 
       if (error.response?.status === 403) {
         const errorData = error.response.data as any;
         if (errorData?.message?.toLowerCase().includes('blocked')) {
-          store.dispatch(logout());
-          window.location.href = "/login";
+          if (isAdminRequest) {
+            store.dispatch(adminLogout());
+            window.location.href = "/admin/login";
+          } else {
+            store.dispatch(logout());
+            window.location.href = "/login";
+          }
           return Promise.reject(error);
         }
       }
@@ -55,23 +70,39 @@ export const setupAxiosInterceptors = (store: { getState: () => RootState; dispa
         originalRequest._retry = true;
 
         try {
-          const refreshResponse = await API.post("/refresh-token");
+          const refreshUrl = isAdminRequest ? "/admin/refresh-token" : "/refresh-token";
+          // Check if admin has its own refresh endpoint. If not, fallback to /refresh-token.
+          // Based on previous research, admin might use the same or a specific one.
+          // I will use a generic approach if /admin/refresh-token doesn't exist, but usually it should.
+          const refreshResponse = await API.post(refreshUrl);
           const newAccessToken = refreshResponse.data.accessToken;
           const user = refreshResponse.data.user;
 
           if (user && newAccessToken) {
-            store.dispatch(setCredentials({
-              user,
-              accessToken: newAccessToken
-            }));
+            if (isAdminRequest) {
+              store.dispatch(setAdminCredentials({
+                user,
+                accessToken: newAccessToken
+              }));
+            } else {
+              store.dispatch(setCredentials({
+                user,
+                accessToken: newAccessToken
+              }));
+            }
           }
 
           // Update header and retry original request
           originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
           return API(originalRequest);
         } catch (refreshError) {
-          store.dispatch(logout());
-          window.location.href = "/login";
+          if (isAdminRequest) {
+            store.dispatch(adminLogout());
+            window.location.href = "/admin/login";
+          } else {
+            store.dispatch(logout());
+            window.location.href = "/login";
+          }
           return Promise.reject(refreshError);
         }
       }
@@ -80,6 +111,5 @@ export const setupAxiosInterceptors = (store: { getState: () => RootState; dispa
     }
   );
 };
-
 
 export default API;

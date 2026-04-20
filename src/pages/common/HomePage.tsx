@@ -4,6 +4,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import type { RootState } from '../../redux/store';
 import ClientDashboard from '../../components/client/ClientDashboard';
 import FreelancerDashboard from '../../components/freelancer/FreelancerDashboard';
+import { UserRoute, FreelancerRoute } from '../../constants/routeConstansts';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 
@@ -13,12 +14,12 @@ const HomePage: React.FC = () => {
 
     React.useEffect(() => {
         if (user && activeRole === 'freelancer' && hasFreelancerProfile === false) {
-            navigate('/freelancer/setup-profile');
+            navigate(FreelancerRoute.PROFILE_SETUP);
         }
     }, [user, activeRole, hasFreelancerProfile, navigate]);
 
     if (!user) {
-        return <Navigate to="/" replace />;
+        return <Navigate to={UserRoute.LANDING} replace />;
     }
 
     return (
@@ -37,3 +38,4 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+
