@@ -3,11 +3,12 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { User, ShieldCheck, ArrowLeft, Mail, Phone, Globe, Briefcase, BookOpen, Clock, CheckCircle, ExternalLink, Link as LinkIcon, Eye, X } from 'lucide-react';
 import { getAdminFreelancerProfile } from '../../services/adminService';
 import toast from 'react-hot-toast';
+import type { FreelancerProfileDTO } from '../../types/freelancer.dto';
 
 const AdminFreelancerProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const [profile, setProfile] = useState<any>(null);
+    const [profile, setProfile] = useState<FreelancerProfileDTO | null>(null);
     const [loading, setLoading] = useState(true);
     const [searchParams] = useSearchParams();
     const [viewingImage, setViewingImage] = useState<string | null>(null);
@@ -28,9 +29,10 @@ const AdminFreelancerProfile: React.FC = () => {
                 } else {
                     toast.error(response.message || 'Failed to fetch profile');
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error fetching profile:', error);
-                toast.error(error.response?.data?.message || 'Error fetching profile');
+                const err = error as { response?: { data?: { message?: string } } };
+                toast.error(err.response?.data?.message || 'Error fetching profile');
             } finally {
                 setLoading(false);
             }
@@ -145,18 +147,14 @@ const AdminFreelancerProfile: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-6 bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                            <div className="grid grid-cols-2 gap-6 bg-gray-50 p-6 rounded-3xl border border-gray-100">
                                 <div className="text-center md:text-left border-r border-gray-200">
                                     <span className="block text-2xl font-black text-gray-900 leading-none mb-1">{profile.completedProjects || 0}</span>
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Completed</span>
                                 </div>
-                                <div className="text-center md:text-left border-r border-gray-200">
+                                <div className="text-center md:text-left">
                                     <span className="block text-2xl font-black text-gray-900 leading-none mb-1">{profile.experienceInYears || 0}y</span>
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Experience</span>
-                                </div>
-                                <div className="text-center md:text-left">
-                                    <span className="block text-2xl font-black text-gray-900 leading-none mb-1">₹{profile.hourlyRate || 0}</span>
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rate / hr</span>
                                 </div>
                             </div>
                         </div>
@@ -164,15 +162,35 @@ const AdminFreelancerProfile: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
-                    {/* Bio Narrative */}
-                    <div className="lg:col-span-8 bg-white rounded-[2rem] py-10 px-10 shadow-sm border border-gray-100">
-                        <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-3">
-                            <BookOpen className="h-4 w-4 text-indigo-600" />
-                            Professional Bio
-                        </h3>
-                        <p className="text-gray-700 font-medium leading-[1.8] text-lg whitespace-pre-line">
-                            {profile.bio}
-                        </p>
+                    <div className="lg:col-span-8 space-y-8">
+                        <div className="bg-white rounded-[2rem] py-10 px-10 shadow-sm border border-gray-100">
+                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-3">
+                                <BookOpen className="h-4 w-4 text-indigo-600" />
+                                Professional Bio
+                            </h3>
+                            <p className="text-gray-700 font-medium leading-[1.8] text-lg whitespace-pre-line">
+                                {profile.bio}
+                            </p>
+                        </div>
+
+                        <div className="bg-white rounded-[2rem] py-10 px-10 shadow-sm border border-gray-100">
+                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-3">
+                                <Briefcase className="h-4 w-4 text-indigo-600" />
+                                Detailed Experience
+                            </h3>
+                            <div className="space-y-6">
+                                {profile.experiences && profile.experiences.length > 0 ? (
+                                    profile.experiences.map((exp, index) => (
+                                        <div key={index} className="p-6 bg-gray-50 border border-gray-100 rounded-2xl">
+                                            <h4 className="text-gray-900 font-bold text-lg mb-2">{exp.title}</h4>
+                                            <p className="text-gray-600 text-sm leading-relaxed">{exp.description}</p>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-gray-400 italic text-sm">No detailed experience provided.</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="lg:col-span-4 space-y-8">
@@ -180,7 +198,7 @@ const AdminFreelancerProfile: React.FC = () => {
                         <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-gray-100">
                             <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-8">Top Expertise</h3>
                             <div className="flex flex-wrap gap-3">
-                                {profile.skills?.map((skill: string, index: number) => (
+                                {profile.skills?.map((skill, index) => (
                                     <span key={index} className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold border border-indigo-100/50">
                                         {skill}
                                     </span>
@@ -239,7 +257,7 @@ const AdminFreelancerProfile: React.FC = () => {
 
                     {profile.previousWorks && profile.previousWorks.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {profile.previousWorks.map((media: string, index: number) => (
+                            {profile.previousWorks.map((media, index) => (
                                 <div 
                                     key={index} 
                                     className="group relative aspect-video bg-gray-100 rounded-3xl overflow-hidden border border-gray-100 hover:border-indigo-500/30 transition-all duration-500 cursor-pointer"

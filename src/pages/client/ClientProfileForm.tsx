@@ -141,8 +141,9 @@ const ClientProfileForm: React.FC = () => {
             } else {
                 toast.error(response.message || 'Update failed');
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Error updating profile');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || 'Error updating profile');
         } finally {
             setLoading(false);
         }
@@ -208,7 +209,7 @@ const ClientProfileForm: React.FC = () => {
                                             type="file"
                                             accept="image/*"
                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null)}
                                         />
                                         <div className="absolute inset-0 bg-slate-900/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                                             <Camera className="h-8 w-8 text-white" />
@@ -237,7 +238,6 @@ const ClientProfileForm: React.FC = () => {
                                         <input
                                             type="text"
                                             name="name"
-                                            required
                                             value={formData.name}
                                             onChange={handleChange}
                                             className={inputClasses}

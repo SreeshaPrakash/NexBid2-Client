@@ -21,9 +21,10 @@ const ClientProfile: React.FC = () => {
                 } else {
                     toast.error(response.message || 'Failed to fetch profile');
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error fetching profile:', error);
-                toast.error(error.response?.data?.message || 'Error fetching profile');
+                const err = error as { response?: { data?: { message?: string } } };
+                toast.error(err.response?.data?.message || 'Error fetching profile');
             } finally {
                 setLoading(false);
             }

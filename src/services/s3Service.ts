@@ -1,4 +1,5 @@
 import API from '../api/axiosinterceptor';
+import { ApiRoute } from '../constants/apiConstants';
 
 export interface PresignedUrlResponse {
   url: string;
@@ -9,7 +10,7 @@ export interface PresignedUrlResponse {
 export const uploadToS3 = async (file: File): Promise<string> => {
   // 1. Request a presigned URL from the backend
   const { data } = await API.get<PresignedUrlResponse>(
-    `/s3/presigned-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`
+    `${ApiRoute.S3_PRESIGNED_URL}?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`
   );
 
   const { url, key } = data;

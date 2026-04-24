@@ -11,6 +11,8 @@ import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import toast from 'react-hot-toast';
 import type { FreelancerProfileDTO } from '../../types/freelancer.dto';
+import { freelancerProfileSchema } from '../../validations/zodSchemas';
+import SkillSelector from '../../components/common/SkillSelector';
 
 const FreelancerProfileForm: React.FC = () => {
     const navigate = useNavigate();
@@ -20,12 +22,12 @@ const FreelancerProfileForm: React.FC = () => {
     const [uploading, setUploading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
-    const [skillInput, setSkillInput] = useState('');
     const [portfolioInput, setPortfolioInput] = useState('');
     const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const isVideo = (url: string) => {
         return url.match(/\.(mp4|webm|ogg|mov)$/i) !== null;
@@ -36,7 +38,7 @@ const FreelancerProfileForm: React.FC = () => {
         title: '',
         bio: '',
         skills: [],
-        hourlyRate: 0,
+        experiences: [{ title: '', description: '' }],
         experienceInYears: 0,
         phone: '',
         country: '',
@@ -55,6 +57,7 @@ const FreelancerProfileForm: React.FC = () => {
         }
     }, [selectedFile]);
 
+
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
@@ -65,14 +68,14 @@ const FreelancerProfileForm: React.FC = () => {
                 try {
                     const clientResp = await getClientProfile();
                     if (clientResp.success) clientData = clientResp.data;
-                } catch (e) {
-                    console.error('Client profile fetch failed', e);
+                } catch {
+                    console.error('Client profile fetch failed');
                 }
 
                 try {
                     const freelancerResp = await getProfile();
                     if (freelancerResp.success) freelancerData = freelancerResp.data;
-                } catch (e) {
+                } catch {
                     // This is expected if the freelancer profile doesn't exist yet
                     console.log('Freelancer profile not found or fetch failed');
                 }
@@ -102,7 +105,7 @@ const FreelancerProfileForm: React.FC = () => {
                         profileImage: clientData?.profileImage || ''
                     }));
                 }
-            } catch (error) {
+            } catch (error: unknown) {
                 console.error('Critical error loading profile data:', error);
                 toast.error('Error initializing form');
             } finally {
@@ -111,33 +114,38 @@ const FreelancerProfileForm: React.FC = () => {
         };
 
         fetchProfileData();
-    }, []);
+    }, [user]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData({
             ...formData,
-            [name]: (name === 'hourlyRate' || name === 'experienceInYears') ? Number(value) : value
+            [name]: name === 'experienceInYears' ? Number(value) : value
         });
     };
 
-    const handleAddSkill = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && skillInput.trim()) {
-            e.preventDefault();
-            if (!formData.skills.includes(skillInput.trim())) {
-                setFormData({
-                    ...formData,
-                    skills: [...formData.skills, skillInput.trim()]
-                });
-            }
-            setSkillInput('');
-        }
+    const handleExperienceChange = (index: number, field: 'title' | 'description', value: string) => {
+        const newExperiences = [...(formData.experiences || [])];
+        newExperiences[index] = { ...newExperiences[index], [field]: value };
+        setFormData({ ...formData, experiences: newExperiences });
     };
 
-    const removeSkill = (skillToRemove: string) => {
+    const addExperience = () => {
         setFormData({
             ...formData,
-            skills: formData.skills.filter(skill => skill !== skillToRemove)
+            experiences: [...(formData.experiences || []), { title: '', description: '' }]
+        });
+    };
+
+    const removeExperience = (index: number) => {
+        const newExperiences = formData.experiences?.filter((_, i) => i !== index);
+        setFormData({ ...formData, experiences: newExperiences });
+    };
+
+    const handleSkillsChange = (newSkills: string[]) => {
+        setFormData({
+            ...formData,
+            skills: newSkills
         });
     };
 
@@ -173,11 +181,11 @@ const FreelancerProfileForm: React.FC = () => {
             });
 
             const uploadedKeys = await Promise.all(uploadPromises);
-            
+
             setFormData(prev => {
                 const currentWorks = prev.previousWorks || [];
                 const newWorks = [...currentWorks];
-                
+
                 uploadedKeys.forEach(key => {
                     if (!newWorks.includes(key)) {
                         newWorks.push(key);
@@ -203,6 +211,20 @@ const FreelancerProfileForm: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const validationResult = freelancerProfileSchema.safeParse(formData);
+        if (!validationResult.success) {
+            const newErrors: Record<string, string> = {};
+            validationResult.error.issues.forEach(issue => {
+                const path = issue.path.join('.');
+                newErrors[path] = issue.message;
+            });
+            console.log('Validation errors:', newErrors);
+            setErrors(newErrors);
+            toast.error('Please fix the validation errors before proceeding');
+            return;
+        }
+        setErrors({});
 
         if (formData.skills.length === 0) {
             toast.error('Please specify at least one core skill');
@@ -261,8 +283,9 @@ const FreelancerProfileForm: React.FC = () => {
             } else {
                 toast.error(response.message || `Operation failed`);
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || `Network error during profile ${isEditMode ? 'update' : 'setup'}`);
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || `Network error during profile ${isEditMode ? 'update' : 'setup'}`);
         } finally {
             setLoading(false);
         }
@@ -315,7 +338,7 @@ const FreelancerProfileForm: React.FC = () => {
                                         ) : (
                                             <User className="h-20 w-20 text-slate-700" />
                                         )}
-                                        
+
                                         <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
                                             {(previewUrl || formData.profileImage) && (
                                                 <button
@@ -333,7 +356,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                     type="file"
                                                     accept="image/*"
                                                     className="hidden"
-                                                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null)}
                                                 />
                                             </label>
                                         </div>
@@ -357,11 +380,11 @@ const FreelancerProfileForm: React.FC = () => {
                                         <input
                                             type="text"
                                             name="name"
-                                            required
                                             value={formData.name}
                                             onChange={handleChange}
                                             className={inputClasses}
                                         />
+                                        {errors.name && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.name}</p>}
                                     </div>
                                     <div className="space-y-1">
                                         <label className={labelClasses}>
@@ -393,6 +416,7 @@ const FreelancerProfileForm: React.FC = () => {
                                             placeholder="e.g. India"
                                             className={inputClasses}
                                         />
+                                        {errors.country && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.country}</p>}
                                     </div>
                                     <div className="space-y-1">
                                         <label className={labelClasses}>
@@ -407,6 +431,7 @@ const FreelancerProfileForm: React.FC = () => {
                                             placeholder="e.g. Kerala"
                                             className={inputClasses}
                                         />
+                                        {errors.state && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.state}</p>}
                                     </div>
                                 </div>
 
@@ -419,12 +444,12 @@ const FreelancerProfileForm: React.FC = () => {
                                     <input
                                         type="text"
                                         name="title"
-                                        required
                                         value={formData.title}
                                         onChange={handleChange}
                                         placeholder="e.g. Full Stack Web Developer"
                                         className={inputClasses}
                                     />
+                                    {errors.title && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.title}</p>}
                                 </div>
 
                                 {/* Bio */}
@@ -435,21 +460,20 @@ const FreelancerProfileForm: React.FC = () => {
                                     </label>
                                     <textarea
                                         name="bio"
-                                        required
                                         rows={5}
                                         value={formData.bio}
                                         onChange={handleChange}
                                         placeholder="Describe your experience and focus area..."
                                         className={inputClasses + " resize-none"}
                                     />
+                                    {errors.bio && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.bio}</p>}
                                 </div>
 
-                                {/* Rate and Experience */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 gap-6">
                                     <div className="space-y-1">
                                         <label className={labelClasses}>
                                             <Briefcase className="h-3.5 w-3.5" />
-                                            Exp. (Years)
+                                            Total Experience (Years)
                                         </label>
                                         <input
                                             type="number"
@@ -459,21 +483,69 @@ const FreelancerProfileForm: React.FC = () => {
                                             placeholder="0"
                                             className={inputClasses}
                                         />
+                                        {errors.experienceInYears && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.experienceInYears}</p>}
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className={labelClasses}>
-                                            <Briefcase className="h-3.5 w-3.5" />
-                                            Hourly Rate (₹)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            name="hourlyRate"
-                                            required
-                                            value={formData.hourlyRate}
-                                            onChange={handleChange}
-                                            placeholder="0"
-                                            className={inputClasses}
-                                        />
+                                </div>
+
+                                {/* Detailed Experiences */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                                        <h3 className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Work Experience Details</h3>
+                                        <button
+                                            type="button"
+                                            onClick={addExperience}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                                        >
+                                            <Plus className="h-3 w-3" />
+                                            Add Experience
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        {formData.experiences?.map((exp, index) => (
+                                            <div key={index} className="p-6 bg-white/5 border border-white/5 rounded-2xl space-y-4 relative group">
+                                                {formData.experiences && formData.experiences.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeExperience(index)}
+                                                        className="absolute top-4 right-4 p-2 text-slate-500 hover:text-rose-500 transition-colors"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                <div className="space-y-1">
+                                                    <label className={labelClasses}>Experience Title</label>
+                                                    <input
+                                                        type="text"
+                                                        value={exp.title}
+                                                        onChange={(e) => handleExperienceChange(index, 'title', e.target.value)}
+                                                        placeholder="e.g. Senior Software Engineer at TechCorp"
+                                                        className={inputClasses}
+                                                    />
+                                                    {errors[`experiences.${index}.title`] && (
+                                                        <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">
+                                                            {errors[`experiences.${index}.title`]}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className={labelClasses}>Description</label>
+                                                    <textarea
+                                                        value={exp.description}
+                                                        onChange={(e) => handleExperienceChange(index, 'description', e.target.value)}
+                                                        placeholder="Describe your roles and responsibilities..."
+                                                        rows={3}
+                                                        className={inputClasses + " resize-none"}
+                                                    />
+                                                    {errors[`experiences.${index}.description`] && (
+                                                        <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">
+                                                            {errors[`experiences.${index}.description`]}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {errors.experiences && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.experiences}</p>}
                                     </div>
                                 </div>
 
@@ -495,6 +567,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 placeholder="https://yourportfolio.com"
                                                 className={inputClasses}
                                             />
+                                            {errors.portfolio && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.portfolio}</p>}
                                         </div>
                                         <div className="space-y-1">
                                             <label className={labelClasses}>
@@ -509,6 +582,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 placeholder="https://github.com/..."
                                                 className={inputClasses}
                                             />
+                                            {errors.gitHubUrl && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.gitHubUrl}</p>}
                                         </div>
                                         <div className="space-y-1">
                                             <label className={labelClasses}>
@@ -523,6 +597,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 placeholder="https://linkedin.com/in/..."
                                                 className={inputClasses}
                                             />
+                                            {errors.linkedinUrl && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.linkedinUrl}</p>}
                                         </div>
                                         <div className="space-y-1">
                                             <label className={labelClasses}>
@@ -537,6 +612,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 placeholder="+91 ..."
                                                 className={inputClasses}
                                             />
+                                            {errors.phone && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.phone}</p>}
                                         </div>
                                     </div>
                                 </div>
@@ -545,33 +621,14 @@ const FreelancerProfileForm: React.FC = () => {
                                 <div className="space-y-4">
                                     <label className={labelClasses}>
                                         <Plus className="h-3.5 w-3.5" />
-                                        Skill Matrix (Press Enter)
+                                        Skill Matrix (Search and Add)
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={skillInput}
-                                        onChange={(e) => setSkillInput(e.target.value)}
-                                        onKeyDown={handleAddSkill}
-                                        placeholder="Add technical or creative skills"
-                                        className={inputClasses}
-                                    />
-
-                                    <div className="flex flex-wrap gap-2">
-                                        {formData.skills.map((skill, index) => (
-                                            <span
-                                                key={index}
-                                                className="inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black bg-white/5 text-slate-300 border border-white/5 transition-all"
-                                            >
-                                                {skill}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeSkill(skill)}
-                                                    className="ml-2 text-slate-500 hover:text-red-400"
-                                                >
-                                                    <X className="h-3 w-3" />
-                                                </button>
-                                            </span>
-                                        ))}
+                                    <div className="pt-2">
+                                        <SkillSelector
+                                            selectedSkills={formData.skills}
+                                            onSkillsChange={handleSkillsChange}
+                                            error={errors.skills}
+                                        />
                                     </div>
                                 </div>
 
@@ -611,7 +668,7 @@ const FreelancerProfileForm: React.FC = () => {
                                     </div>
 
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                        {formData.previousWorks?.map((item: string, index: number) => (
+                                        {formData.previousWorks?.map((item, index) => (
                                             <div
                                                 key={index}
                                                 className="group relative aspect-video bg-[#181820] rounded-xl overflow-hidden border border-white/5 hover:border-indigo-500/30 transition-all cursor-pointer"
@@ -622,7 +679,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 ) : (
                                                     <img src={item} alt={`Portfolio ${index + 1}`} className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                                 )}
-                                                
+
                                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         type="button"
@@ -666,7 +723,7 @@ const FreelancerProfileForm: React.FC = () => {
 
             {/* Image Viewing Modal */}
             {viewingImage && (
-                <div 
+                <div
                     className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
                     onClick={() => setViewingImage(null)}
                 >
@@ -677,18 +734,18 @@ const FreelancerProfileForm: React.FC = () => {
                         <X className="h-6 w-6" />
                     </button>
                     {viewingImage && isVideo(viewingImage) ? (
-                        <video 
-                            src={viewingImage} 
+                        <video
+                            src={viewingImage}
                             controls
-                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
-                            onClick={(e) => e.stopPropagation()} 
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
                         />
                     ) : (
-                        <img 
-                            src={viewingImage} 
-                            alt="Enlarged view" 
-                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
-                            onClick={(e) => e.stopPropagation()} 
+                        <img
+                            src={viewingImage}
+                            alt="Enlarged view"
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
                         />
                     )}
                 </div>

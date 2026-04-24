@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { User, Briefcase, CheckCircle, Globe, Link as LinkIcon, BookOpen, Mail, Phone, ExternalLink, X, Eye, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import { getProfile, requestVerification } from '../../services/freelancerService';
 import toast from 'react-hot-toast';
+import type { FreelancerProfileDTO } from '../../types/freelancer.dto';
 
 const FreelancerProfile: React.FC = () => {
     const navigate = useNavigate();
-    const [profile, setProfile] = useState<any>(null);
+    const [profile, setProfile] = useState<FreelancerProfileDTO | null>(null);
     const [loading, setLoading] = useState(true);
     const [requestingVerification, setRequestingVerification] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
@@ -24,9 +25,10 @@ const FreelancerProfile: React.FC = () => {
                 } else {
                     toast.error(response.message || 'Failed to fetch profile');
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error fetching profile:', error);
-                toast.error(error.response?.data?.message || 'Error fetching profile');
+                const err = error as { response?: { data?: { message?: string } } };
+                toast.error(err.response?.data?.message || 'Error fetching profile');
             } finally {
                 setLoading(false);
             }
@@ -41,13 +43,14 @@ const FreelancerProfile: React.FC = () => {
             const response = await requestVerification();
             if (response.success) {
                 toast.success('Verification request submitted successfully!');
-                setProfile({ ...profile, verificationStatus: 'pending' });
+                setProfile(prev => prev ? { ...prev, verificationStatus: 'pending' } : null);
             } else {
                 toast.error(response.message || 'Failed to request verification');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error requesting verification:', error);
-            toast.error(error.response?.data?.message || 'Error requesting verification');
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || 'Error requesting verification');
         } finally {
             setRequestingVerification(false);
         }
@@ -149,18 +152,14 @@ const FreelancerProfile: React.FC = () => {
                             </div>
 
                             {/* Main Stats Card */}
-                            <div className="grid grid-cols-3 gap-6 bg-white/5 p-5 rounded-2xl border border-white/5">
+                            <div className="grid grid-cols-2 gap-6 bg-white/5 p-5 rounded-2xl border border-white/5">
                                 <div className="text-center md:text-left border-r border-white/10">
                                     <span className="block text-xl font-black text-white leading-none mb-1">{profile.completedProjects || 0}</span>
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Completed</span>
                                 </div>
-                                <div className="text-center md:text-left border-r border-white/10">
-                                    <span className="block text-xl font-black text-white leading-none mb-1">{profile.experienceInYears || 0}</span>
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Experience</span>
-                                </div>
                                 <div className="text-center md:text-left">
-                                    <span className="block text-xl font-black text-white leading-none mb-1">₹{profile.hourlyRate || 0}</span>
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Rate / hr</span>
+                                    <span className="block text-xl font-black text-white leading-none mb-1">{profile.experienceInYears || 0}</span>
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Years Exp.</span>
                                 </div>
                             </div>
                         </div>
@@ -222,13 +221,36 @@ const FreelancerProfile: React.FC = () => {
                 {/* TIER 2: Mid-Section (Remaining Field Datas) */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
                     <div className="lg:col-span-8 bg-[#111118] rounded-[2rem] py-8 px-10 shadow-sm border border-white/5">
-                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
-                            <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
-                            Professional Narrative
-                        </h3>
-                        <p className="text-slate-300 font-medium leading-[1.8] text-base whitespace-pre-line">
-                            {profile.bio}
-                        </p>
+                        <div className="space-y-8">
+                            <section>
+                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                                    <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
+                                    Professional Narrative
+                                </h3>
+                                <p className="text-slate-300 font-medium leading-[1.8] text-base whitespace-pre-line">
+                                    {profile.bio}
+                                </p>
+                            </section>
+
+                            <section>
+                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                                    <Briefcase className="h-3.5 w-3.5 text-indigo-400" />
+                                    Work Experience
+                                </h3>
+                                <div className="space-y-6">
+                                    {profile.experiences && profile.experiences.length > 0 ? (
+                                        profile.experiences.map((exp, index) => (
+                                            <div key={index} className="p-6 bg-white/5 border border-white/5 rounded-2xl">
+                                                <h4 className="text-white font-bold text-lg mb-2">{exp.title}</h4>
+                                                <p className="text-slate-400 text-sm leading-relaxed">{exp.description}</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-slate-500 italic text-sm">No detailed experience provided yet.</p>
+                                    )}
+                                </div>
+                            </section>
+                        </div>
                     </div>
 
                     <div className="lg:col-span-4 space-y-6">
@@ -236,7 +258,7 @@ const FreelancerProfile: React.FC = () => {
                         <div className="bg-[#111118] rounded-[2rem] p-8 shadow-sm border border-white/5">
                             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6">Expertise</h3>
                             <div className="flex flex-wrap gap-2">
-                                {profile.skills?.map((skill: string, index: number) => (
+                                {profile.skills?.map((skill, index) => (
                                     <span key={index} className="px-3 py-1.5 bg-white/5 text-slate-300 rounded-lg text-[10px] font-bold border border-white/5">
                                         {skill}
                                     </span>
@@ -295,7 +317,7 @@ const FreelancerProfile: React.FC = () => {
 
                     {profile.previousWorks && profile.previousWorks.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {profile.previousWorks.map((media: string, index: number) => (
+                            {profile.previousWorks.map((media, index) => (
                                 <div 
                                     key={index} 
                                     className="group relative aspect-video bg-[#181820] rounded-2xl overflow-hidden border border-white/5 hover:border-indigo-500/30 transition-all duration-500 cursor-pointer"

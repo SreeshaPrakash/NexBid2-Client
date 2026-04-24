@@ -86,8 +86,9 @@ const VerifyOtp: React.FC = () => {
             } else {
                 toast.error(response.message || "Verification failed");
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "Invalid OTP");
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || "Invalid OTP");
         } finally {
             setLoading(false);
         }
@@ -100,8 +101,9 @@ const VerifyOtp: React.FC = () => {
             const response = await resendOtp(email);
             toast.success(response.message || "OTP resent successfully");
             setResendCooldown(60); // 60 seconds cooldown
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "Failed to resend OTP");
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || "Failed to resend OTP");
         }
     };
 

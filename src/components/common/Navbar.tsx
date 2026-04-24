@@ -7,8 +7,16 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../redux/store';
 import { logout as logoutAction, setActiveRole } from '../../redux/slices/auth/authSlice';
 import { switchRole as switchRoleApi, logout as logoutApi } from '../../services/authService';
-import { Menu, X, Briefcase, User, LogOut, ArrowLeftRight, Shield } from 'lucide-react';
+import { 
+    Menu, 
+    X, 
+    User, 
+    LogOut, 
+    ArrowLeftRight, 
+    Shield
+} from 'lucide-react';
 import toast from 'react-hot-toast';
+import { UserRoute, FreelancerRoute, ClientRoute } from '../../constants/routeConstansts';
 
 const Navbar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -41,7 +49,9 @@ const Navbar: React.FC = () => {
     const handleLogout = async () => {
         try {
             await logoutApi();
-        } catch (_) {}
+        } catch {
+            // Ignore logout API failure and proceed with client-side logout
+        }
         dispatch(logoutAction());
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
@@ -64,24 +74,25 @@ const Navbar: React.FC = () => {
                 setIsProfileOpen(false);
                 setIsMenuOpen(false);
                 if (nextRole === 'freelancer' && hasProfile === false) {
-                    navigate('/freelancer/profile/setup');
+                    navigate(FreelancerRoute.PROFILE_SETUP);
                 } else {
-                    navigate('/home');
+                    navigate(UserRoute.HOME);
                 }
             } else {
                 toast.error(response.message || 'Failed to switch role');
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Error switching role');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || 'Error switching role');
         } finally {
             setIsSwitching(false);
         }
     };
 
     const navLinks = [
-        { name: 'Home', path: '/' },
-        { name: 'How It Works', path: '/#how-it-works' },
-        { name: 'Categories', path: '/#categories' },
+        { name: 'Home', path: UserRoute.LANDING },
+        { name: 'How It Works', path: `${UserRoute.LANDING}#how-it-works` },
+        { name: 'Categories', path: `${UserRoute.LANDING}#categories` },
     ];
 
     return (
@@ -223,7 +234,7 @@ const Navbar: React.FC = () => {
             <nav className={`nb-nav ${scrolled ? 'scrolled' : 'top'}`}>
                 <div className="nb-inner">
                     {/* Logo */}
-                    <Link to={user ? '/home' : '/'} className="nb-logo">
+                    <Link to={user ? UserRoute.HOME : UserRoute.LANDING} className="nb-logo">
                         <div className="nb-logo-box">N</div>
                         <span className="nb-logo-text">NexBid</span>
                     </Link>
@@ -280,7 +291,7 @@ const Navbar: React.FC = () => {
                                             </Link> } */}
 
 
-                                            <Link to={`/${activeRole}/profile`} onClick={() => setIsMenuOpen(false)}>
+                                            <Link to={activeRole === 'client' ? ClientRoute.PROFILE : FreelancerRoute.PROFILE} onClick={() => setIsMenuOpen(false)}>
                                                 <button className="nb-dropdown-item">
                                                     <User style={{ width: 15, height: 15, flexShrink: 0 }} />
                                                     My Profile
@@ -298,10 +309,10 @@ const Navbar: React.FC = () => {
                             </>
                         ) : (
                             <>
-                                <Link to="/login">
+                                <Link to={UserRoute.LOGIN}>
                                     <button className="nb-btn-ghost">Log in</button>
                                 </Link>
-                                <Link to="/signup">
+                                <Link to={UserRoute.SIGNUP}>
                                     <button className="nb-btn-primary">Sign up free</button>
                                 </Link>
                             </>
@@ -364,10 +375,10 @@ const Navbar: React.FC = () => {
                         </>
                     ) : (
                         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                            <Link to="/login" style={{ flex: 1 }} onClick={() => setIsMenuOpen(false)}>
+                            <Link to={UserRoute.LOGIN} style={{ flex: 1 }} onClick={() => setIsMenuOpen(false)}>
                                 <button className="nb-btn-outline" style={{ width: '100%', justifyContent: 'center' }}>Log in</button>
                             </Link>
-                            <Link to="/signup" style={{ flex: 1 }} onClick={() => setIsMenuOpen(false)}>
+                            <Link to={UserRoute.SIGNUP} style={{ flex: 1 }} onClick={() => setIsMenuOpen(false)}>
                                 <button className="nb-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>Sign up</button>
                             </Link>
                         </div>

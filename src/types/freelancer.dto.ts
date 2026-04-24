@@ -4,9 +4,8 @@ export interface FreelancerProfileDTO {
     title: string;
     bio: string;
     skills: string[];
-    experience?: any[]; // details can be refined later
-    education?: any[]; // details can be refined later
-    hourlyRate?: number;
+    experiences?: { title: string; description: string }[];
+    education?: string[];
     contactNumber?: string;
     phone?: string | number;
     country?: string;
@@ -18,4 +17,8 @@ export interface FreelancerProfileDTO {
     experienceInYears?: number;
     portfolioImage?: string;
     profileImage?: string;
+    verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+    rejectionReason?: string;
+    completedProjects?: number;
+    createdAt?: string;
 }

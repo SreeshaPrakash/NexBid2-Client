@@ -21,7 +21,8 @@ const ResetPassword: React.FC = () => {
 
     useEffect(() => {
         // Extract email and otp from location state passed from VerifyOtp page
-        const { email: stateEmail, otp: stateOtp } = (location.state as any) || {};
+        const state = location.state as { email?: string; otp?: string } | null;
+        const { email: stateEmail, otp: stateOtp } = state || {};
 
         if (stateEmail) {
             setEmail(stateEmail);
@@ -70,8 +71,9 @@ const ResetPassword: React.FC = () => {
             });
             toast.success(response.message || "Password reset successfully!");
             navigate(`/${UserRoute.LOGIN}`);
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "Failed to reset password. Please check your OTP.");
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || "Failed to reset password. Please check your OTP.");
         } finally {
             setLoading(false);
         }

@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, generatePath } from 'react-router-dom';
+import { AdminRoute } from '../../constants/routeConstansts';
+import { DataTable } from '../../components/common/DataTable';
+import useDebounce from '../../hooks/useDebounce';
+import type { Column } from '../../components/common/DataTable';
 import {
     Search,
     Loader2,
@@ -11,9 +15,17 @@ import {
     ShieldX,
     Check,
     Clock,
-    Eye
+    Eye,
+    LogOut
 } from 'lucide-react';
-import { getAllUsers, toggleBlockStatus, getPendingVerifications, approveVerification, rejectVerification } from '../../services/adminService';
+import { 
+    getAllUsers, 
+    toggleBlockStatus, 
+    getPendingVerifications, 
+    approveVerification, 
+    rejectVerification,
+    logoutAdmin 
+} from '../../services/adminService';
 import toast from 'react-hot-toast';
 
 interface UserData {
@@ -45,6 +57,7 @@ const Dashboard: React.FC = () => {
     const [verifications, setVerifications] = useState<FreelancerVerification[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [selectedRole, setSelectedRole] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
 
@@ -60,11 +73,11 @@ const Dashboard: React.FC = () => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
 
-    const fetchUsers = async () => {
+    const fetchUsers = React.useCallback(async () => {
         setLoading(true);
         try {
             const response = await getAllUsers({
-                search: searchTerm,
+                search: debouncedSearchTerm,
                 role: selectedRole,
                 status: selectedStatus,
                 page: currentPage,
@@ -77,26 +90,26 @@ const Dashboard: React.FC = () => {
                     setTotalUsers(response.pagination.totalUsers);
                 }
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Failed to load users");
         } finally {
             setLoading(false);
         }
-    };
+    }, [debouncedSearchTerm, selectedRole, selectedStatus, currentPage, limit]);
 
-    const fetchVerifications = async () => {
+    const fetchVerifications = React.useCallback(async () => {
         setLoading(true);
         try {
             const response = await getPendingVerifications();
             if (response.success) {
                 setVerifications(response.data || []);
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Failed to load verification requests");
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -109,7 +122,7 @@ const Dashboard: React.FC = () => {
         // Initial fetch for both on mount to have badge counts ready
         fetchUsers();
         fetchVerifications();
-    }, []);
+    }, [fetchUsers, fetchVerifications]);
 
     useEffect(() => {
         if (activeTab === 'users') {
@@ -117,7 +130,7 @@ const Dashboard: React.FC = () => {
         } else {
             fetchVerifications();
         }
-    }, [activeTab, searchTerm, selectedRole, selectedStatus, currentPage]);
+    }, [activeTab, fetchUsers, fetchVerifications]);
 
     const handleToggleClick = (user: UserData) => {
         setSelectedUser(user);
@@ -132,7 +145,7 @@ const Dashboard: React.FC = () => {
                 toast.success("Freelancer verified successfully");
                 fetchVerifications();
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Approval failed");
         } finally {
             setActionLoading(false);
@@ -160,7 +173,7 @@ const Dashboard: React.FC = () => {
                 setIsRejectModalOpen(false);
                 setSelectedId(null);
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Rejection failed");
         } finally {
             setActionLoading(false);
@@ -175,16 +188,187 @@ const Dashboard: React.FC = () => {
             const response = await toggleBlockStatus(selectedUser.id, !selectedUser.isBlocked);
             if (response.success) {
                 toast.success(`User ${selectedUser.isBlocked ? 'unblocked' : 'blocked'} successfully`);
-                fetchUsers();
+                setUsers(prevUsers => prevUsers.map(user => 
+                   user.id === selectedUser.id ? { ...user, isBlocked: !selectedUser.isBlocked } : user
+                ));
                 setIsModalOpen(false);
                 setSelectedUser(null);
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Action failed");
         } finally {
             setActionLoading(false);
         }
     };
+
+    const handleLogout = async () => {
+        try {
+            await logoutAdmin();
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('user');
+            toast.success("Logged out successfully");
+            navigate('/admin/login');
+        } catch (error) {
+            toast.error("Logout failed");
+            console.error("Logout Error:", error);
+        }
+    };
+
+    const userColumns: Column<UserData>[] = [
+        {
+            header: 'User',
+            render: (user) => (
+                <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10">
+                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg">
+                            {user.name.charAt(0).toUpperCase()}
+                        </div>
+                    </div>
+                    <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                    </div>
+                </div>
+            )
+        },
+        {
+            header: 'Role',
+            render: (user) => (
+                <div className="flex flex-wrap gap-1">
+                    {user.roles.map(role => (
+                        <span key={role} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                            {role}
+                        </span>
+                    ))}
+                </div>
+            )
+        },
+        {
+            header: 'Status',
+            render: (user) => user.isBlocked ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    Blocked
+                </span>
+            ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Active
+                </span>
+            )
+        },
+        {
+            header: 'Verified',
+            render: (user) => user.isEmailVerified ? (
+                <span className="text-green-600 font-medium">Yes</span>
+            ) : (
+                <span className="text-amber-500 font-medium">Pending</span>
+            )
+        },
+        {
+            header: 'Registered',
+            render: (user) => <span className="text-sm text-gray-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</span>
+        },
+        {
+            header: 'Actions',
+            headerClassName: 'text-right',
+            cellClassName: 'text-right overflow-visible relative text-sm font-medium space-x-3',
+            render: (user) => (
+                <>
+                    {user.roles.includes('freelancer') && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); navigate({ pathname: generatePath(AdminRoute.FREELANCER_PROFILE, { id: user.id }), search: '?from=users' }); }}
+                            className="inline-flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all active:scale-95"
+                        >
+                            <Eye className="h-3.5 w-3.5 mr-1.5" />
+                            View Profile
+                        </button>
+                    )}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleToggleClick(user); }}
+                        className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white ${user.isBlocked
+                            ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                            : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                            } focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                    >
+                        {user.isBlocked ? (
+                            <>
+                                <UserCheck className="mr-1.5 h-3 w-3" />
+                                Unblock
+                            </>
+                        ) : (
+                            <>
+                                <UserX className="mr-1.5 h-3 w-3" />
+                                Block
+                            </>
+                        )}
+                    </button>
+                </>
+            )
+        }
+    ];
+
+    const verificationColumns: Column<FreelancerVerification>[] = [
+        {
+            header: 'Freelancer',
+            render: (req) => (
+                <div className="flex items-center">
+                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold border border-slate-200">
+                        {req.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="ml-4">
+                        <div className="text-sm font-bold text-gray-900">{req.name}</div>
+                        <div className="text-sm text-gray-500">{req.email}</div>
+                    </div>
+                </div>
+            )
+        },
+        {
+            header: 'Professional Title',
+            render: (req) => <div className="text-sm text-gray-900 font-medium">{req.title}</div>
+        },
+        {
+            header: 'Status',
+            render: () => (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase">
+                    <Clock className="mr-1.5 h-3 w-3" />
+                    Pending
+                </span>
+            )
+        },
+        {
+            header: 'Submitted',
+            render: (req) => <span className="text-sm text-gray-500">{new Date(req.updatedAt).toLocaleDateString()}</span>
+        },
+        {
+            header: 'Actions',
+            headerClassName: 'text-right',
+            cellClassName: 'text-right overflow-visible relative text-sm font-medium space-x-3',
+            render: (req) => (
+                <>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); navigate({ pathname: generatePath(AdminRoute.FREELANCER_PROFILE, { id: req.id }), search: '?from=verifications' }); }}
+                        className="inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all active:scale-95"
+                    >
+                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        View Profile
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleApprove(req.id); }}
+                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all shadow-md shadow-green-900/10 active:scale-95"
+                    >
+                        <Check className="h-3.5 w-3.5 mr-1.5" />
+                        Approve
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleRejectClick(req.id); }}
+                        className="inline-flex items-center px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-all active:scale-95"
+                    >
+                        <X className="h-3.5 w-3.5 mr-1.5" />
+                        Reject
+                    </button>
+                </>
+            )
+        }
+    ];
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -195,6 +379,13 @@ const Dashboard: React.FC = () => {
                         <ShieldCheck className="h-6 w-6 text-indigo-600" />
                         <h1 className="text-xl font-bold text-gray-900">Admin Control Center</h1>
                     </div>
+                    <button
+                        onClick={handleLogout}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-bold hover:bg-red-100 transition-all active:scale-95"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                    </button>
                 </div>
             </header>
 
@@ -288,277 +479,39 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        User
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Role
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Verified
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Registered
-                                    </th>
-                                    <th scope="col" className="relative px-6 py-3">
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {loading ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
-                                            <div className="flex justify-center items-center">
-                                                <Loader2 className="h-6 w-6 animate-spin text-indigo-500 mr-2" />
-                                                Loading users...
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : users.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
-                                            No users found matching your criteria.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    users.map((user) => (
-                                        <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <div className="flex-shrink-0 h-10 w-10">
-                                                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg">
-                                                            {user.name.charAt(0).toUpperCase()}
-                                                        </div>
-                                                    </div>
-                                                    <div className="ml-4">
-                                                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                                                        <div className="text-sm text-gray-500">{user.email}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {user.roles.map(role => (
-                                                        <span key={role} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
-                                                            {role}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                {user.isBlocked ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                                        Blocked
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                        Active
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {user.isEmailVerified ? (
-                                                    <span className="text-green-600 font-medium">Yes</span>
-                                                ) : (
-                                                    <span className="text-amber-500 font-medium">Pending</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                                                {user.roles.includes('freelancer') && (
-                                                    <button
-                                                        onClick={() => navigate(`/admin/freelancer-profile/${user.id}?from=users`)}
-                                                        className="inline-flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all active:scale-95"
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5 mr-1.5" />
-                                                        View Profile
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => handleToggleClick(user)}
-                                                    className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white ${user.isBlocked
-                                                        ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                                                        : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                                                        } focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                                                >
-                                                    {user.isBlocked ? (
-                                                        <>
-                                                            <UserCheck className="mr-1.5 h-3 w-3" />
-                                                            Unblock
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <UserX className="mr-1.5 h-3 w-3" />
-                                                            Block
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Pagination UI */}
-                    {!loading && totalUsers > 0 && (
-                        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                            <div className="flex-1 flex justify-between sm:hidden">
-                                <button
-                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                    disabled={currentPage === 1}
-                                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                                >
-                                    Previous
-                                </button>
-                                <button
-                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                    disabled={currentPage === totalPages}
-                                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                                >
-                                    Next
-                                </button>
-                            </div>
-                            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-end">
-
-                                <div>
-                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPage === 1}
-                                            className="relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                                        >
-                                            <span className="sr-only">Prev</span>
-                                            <svg className="h-5 w-5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                                            </svg>
-                                            Previous
-                                        </button>
-
-                                        <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-gray-50 text-sm font-medium text-gray-700">
-                                            Page {currentPage} of {totalPages}
-                                        </span>
-
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            disabled={currentPage === totalPages}
-                                            className="relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                                        >
-                                            Next
-                                            <svg className="h-5 w-5 ml-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                            </svg>
-                                            <span className="sr-only">Next</span>
-                                        </button>
-                                    </nav>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                <DataTable
+                    data={users}
+                    columns={userColumns}
+                    loading={loading}
+                    emptyMessage="No users found matching your criteria."
+                    keyExtractor={(user) => user.id}
+                    itemsPerPage={limit}
+                    theme="light"
+                    serverPagination={{
+                        currentPage,
+                        totalPages,
+                        totalItems: totalUsers,
+                        onPageChange: setCurrentPage
+                    }}
+                />
             </>
         ) : (
                     /* Verification Table */
-                    <div className="bg-white shadow-sm border border-gray-200 rounded-2xl overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Freelancer</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Professional Title</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Submitted</th>
-                                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {loading ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-6 py-12 text-center">
-                                                <div className="flex justify-center items-center gap-3 text-gray-500">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-                                                    <span className="font-medium">Loading requests...</span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ) : verifications.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-6 py-16 text-center">
-                                                <div className="flex flex-col items-center justify-center text-gray-400">
-                                                    <ShieldCheck className="h-12 w-12 mb-4 opacity-20" />
-                                                    <p className="text-lg font-bold text-gray-900 mb-1">No Pending Requests</p>
-                                                    <p className="text-sm">Great! All professional verifications have been processed.</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        verifications.map((req) => (
-                                            <tr key={req.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center">
-                                                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold border border-slate-200">
-                                                            {req.name.charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div className="ml-4">
-                                                            <div className="text-sm font-bold text-gray-900">{req.name}</div>
-                                                            <div className="text-sm text-gray-500">{req.email}</div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-900 font-medium">{req.title}</div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase">
-                                                        <Clock className="mr-1.5 h-3 w-3" />
-                                                        Pending
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {new Date(req.updatedAt).toLocaleDateString()}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                                                    <button
-                                                        onClick={() => navigate(`/admin/freelancer-profile/${req.id}?from=verifications`)}
-                                                        className="inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all active:scale-95"
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5 mr-1.5" />
-                                                        View Profile
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleApprove(req.id)}
-                                                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all shadow-md shadow-green-900/10 active:scale-95"
-                                                    >
-                                                        <Check className="h-3.5 w-3.5 mr-1.5" />
-                                                        Approve
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRejectClick(req.id)}
-                                                        className="inline-flex items-center px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-all active:scale-95"
-                                                    >
-                                                        <X className="h-3.5 w-3.5 mr-1.5" />
-                                                        Reject
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                <DataTable
+                    data={verifications}
+                    columns={verificationColumns}
+                    loading={loading}
+                    emptyMessage={
+                        <div className="flex flex-col items-center justify-center text-gray-400">
+                            <ShieldCheck className="h-12 w-12 mb-4 opacity-20" />
+                            <p className="text-lg font-bold text-gray-900 mb-1">No Pending Requests</p>
+                            <p className="text-sm">Great! All professional verifications have been processed.</p>
                         </div>
-                    </div>
+                    }
+                    keyExtractor={(req) => req.id}
+                    itemsPerPage={5} // Use client-side pagination for verifications since it's not paginated from server
+                    theme="light"
+                />
                 )}
             </main>
 
