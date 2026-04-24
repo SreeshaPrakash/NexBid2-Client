@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Loader2, Plus } from 'lucide-react';
 import { searchSkills } from '../../services/projectService';
+import useDebounce from '../../hooks/useDebounce';
 
 interface SkillSelectorProps {
     selectedSkills: string[];
@@ -16,6 +17,7 @@ const SkillSelector: React.FC<SkillSelectorProps> = ({
     error
 }) => {
     const [skillInput, setSkillInput] = useState('');
+    const debouncedSkillInput = useDebounce(skillInput, 300);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -23,13 +25,12 @@ const SkillSelector: React.FC<SkillSelectorProps> = ({
 
     // Debounced search
     useEffect(() => {
-        const timer = setTimeout(async () => {
-            const trimmedInput = skillInput.trim();
+        const fetchSkills = async () => {
+            const trimmedInput = debouncedSkillInput.trim();
             if (trimmedInput.length >= 1) {
                 setIsLoading(true);
                 try {
                     const results = await searchSkills(trimmedInput);
-                    // Filter out already selected skills
                     setSuggestions(results.filter(s => !selectedSkills.includes(s)));
                     setShowSuggestions(true);
                 } catch (err) {
@@ -41,10 +42,10 @@ const SkillSelector: React.FC<SkillSelectorProps> = ({
                 setSuggestions([]);
                 setShowSuggestions(false);
             }
-        }, 300);
+        };
 
-        return () => clearTimeout(timer);
-    }, [skillInput, selectedSkills]);
+        fetchSkills();
+    }, [debouncedSkillInput, selectedSkills]);
 
     // Handle clicks outside dropdown
     useEffect(() => {

@@ -43,8 +43,9 @@ const ForgotPassword: React.FC = () => {
             await forgotPassword(email);
             toast.success("OTP sent to your email");
             navigate(`/${UserRoute.RESET_PASSWORD}`, { state: { email } });
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "Failed to send OTP");
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || "Failed to send OTP");
         } finally {
             setLoading(false);
         }

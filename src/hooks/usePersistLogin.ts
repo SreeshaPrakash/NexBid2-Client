@@ -47,7 +47,7 @@ export const usePersistLogin = () => {
                         }
                     }
                 }
-            } catch (error) {
+            } catch {
                 // Silent fail for persistence
             } finally {
                 clearTimeout(timeoutId);
@@ -60,7 +60,7 @@ export const usePersistLogin = () => {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [dispatch, isAdminAuthenticated, isAuthenticated]);
 
     return { isLoading };
 };

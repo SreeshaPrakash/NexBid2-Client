@@ -43,7 +43,7 @@ export const resetPassword = async (data: ResetPasswordDTO): Promise<{ message: 
     return response.data;
 };
 
-export const switchRole = async (role: string): Promise<any> => {
+export const switchRole = async (role: string): Promise<AuthResponse> => {
     const response = await API.post(ApiRoute.SWITCH_ROLE, { requestedRole: role });
     return response.data;
 };

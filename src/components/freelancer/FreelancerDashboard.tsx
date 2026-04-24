@@ -18,7 +18,7 @@ import type { ProjectDTO } from '../../types/project.dto';
 
 const FreelancerDashboard: React.FC = () => {
     const { user } = useSelector((state: RootState) => state.auth);
-    const [dashboardData, setDashboardData] = React.useState<{ totalBidsPlaced: number, recommendedProjects: ProjectDTO[] } | null>(null);
+    const [dashboardData, setDashboardData] = React.useState<{ totalBidsPlaced: number, ongoingProjectsCount: number, completedProjectsCount: number, totalEarnings: number, recommendedProjects: ProjectDTO[] } | null>(null);
 
     React.useEffect(() => {
         const fetchDashboardData = async () => {
@@ -35,6 +35,10 @@ const FreelancerDashboard: React.FC = () => {
         fetchDashboardData();
     }, []);
 
+    const formatCurrency = (amount: number): string => {
+        return '₹' + amount.toLocaleString('en-IN');
+    };
+
     const stats = [
         {
             label: 'Total Bids',
@@ -49,7 +53,7 @@ const FreelancerDashboard: React.FC = () => {
         },
         {
             label: 'Ongoing Projects',
-            value: '3',
+            value: dashboardData?.ongoingProjectsCount.toString() || '0',
             icon: Briefcase,
             trend: 'Due this month',
             trendUp: true,
@@ -60,7 +64,7 @@ const FreelancerDashboard: React.FC = () => {
         },
         {
             label: 'Completed',
-            value: '24',
+            value: dashboardData?.completedProjectsCount.toString() || '0',
             icon: CheckCircle,
             trend: 'All time',
             trendUp: false,
@@ -71,7 +75,7 @@ const FreelancerDashboard: React.FC = () => {
         },
         {
             label: 'Total Earnings',
-            value: '₹1,24,500',
+            value: formatCurrency(dashboardData?.totalEarnings || 0),
             icon: IndianRupee,
             trend: 'Lifetime earnings',
             trendUp: false,

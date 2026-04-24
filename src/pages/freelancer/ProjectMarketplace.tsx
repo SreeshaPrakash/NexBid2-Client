@@ -1,17 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Filter, Briefcase, ChevronRight } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { fetchOpenProjects, clearError } from '../../redux/slices/project/projectSlice';
 import ProjectListView from '../../components/project/ProjectListView';
+import Pagination from '../../components/common/Pagination';
+import useDebounce from '../../hooks/useDebounce';
 
 const ProjectMarketplace: React.FC = () => {
     const dispatch = useAppDispatch();
-    const { projects, loading } = useAppSelector((state) => state.project);
+    const { projects, totalProjects, loading } = useAppSelector((state) => state.project);
+    const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 500);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 4;
 
     useEffect(() => {
         dispatch(clearError());
-        dispatch(fetchOpenProjects());
-    }, [dispatch]);
+        dispatch(fetchOpenProjects({ page: currentPage, limit: itemsPerPage }));
+    }, [dispatch, currentPage, itemsPerPage]);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+    };
+
+    const filteredProjects = projects.filter(project =>
+        project.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        project.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        project.skillsRequired.some(skill => skill.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+    );
 
     return (
         <div className="w-full">
@@ -32,9 +48,11 @@ const ProjectMarketplace: React.FC = () => {
                         <div className="flex items-center gap-3 w-full md:w-auto">
                             <div className="relative flex-grow md:w-80">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                <input 
-                                    type="text" 
-                                    placeholder="Search projects..." 
+                                <input
+                                    type="text"
+                                    placeholder="Search projects..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full bg-[#111118] border border-white/5 rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                                 />
                             </div>
@@ -44,10 +62,17 @@ const ProjectMarketplace: React.FC = () => {
                         </div>
                     </div>
 
-                    <ProjectListView 
-                        projects={projects} 
-                        loading={loading} 
-                        emptyMessage="No open projects found at the moment. Please check back later!"
+                    <ProjectListView
+                        projects={filteredProjects}
+                        loading={loading}
+                        emptyMessage={searchTerm ? `No projects found matching "${searchTerm}"` : "No open projects found at the moment. Please check back later!"}
+                    />
+
+                    <Pagination
+                        currentPage={currentPage}
+                        totalItems={totalProjects}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={handlePageChange}
                     />
                 </div>
             </main>

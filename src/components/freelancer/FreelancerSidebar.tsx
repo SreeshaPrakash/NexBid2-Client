@@ -21,7 +21,11 @@ const FreelancerSidebar: React.FC = () => {
     ];
 
     const handleLogout = async () => {
-        try { await logoutApi(); } catch (_) {}
+        try {
+            await logoutApi();
+        } catch {
+            // Ignore API failure and proceed with local logout
+        }
         dispatch(logoutAction());
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');

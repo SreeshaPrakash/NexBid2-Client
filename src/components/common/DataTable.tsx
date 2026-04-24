@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Briefcase } from 'lucide-react';
+import Pagination from './Pagination';
 
 export interface Column<T> {
     header: string;
@@ -47,7 +48,8 @@ export function DataTable<T>({
     const [clientPage, setClientPage] = useState(1);
 
     useEffect(() => {
-        setClientPage(1);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setClientPage(prev => prev === 1 ? prev : 1);
     }, [data.length]);
 
     const isServerPaginated = !!serverPagination;
@@ -56,7 +58,7 @@ export function DataTable<T>({
     const totalPages = isServerPaginated
         ? serverPagination.totalPages
         : Math.max(1, Math.ceil(data.length / itemsPerPage));
-    const totalItems = isServerPaginated ? serverPagination.totalItems : data.length;
+    const totalItems = isServerPaginated ? (serverPagination.totalItems ?? 0) : data.length;
 
     const displayData = isServerPaginated
         ? data
@@ -101,17 +103,6 @@ export function DataTable<T>({
     const tbodyClass = isLight ? "bg-white divide-y divide-gray-200" : "divide-y divide-white/5";
     const trClass = isLight ? "hover:bg-gray-50" : "hover:bg-white/[0.02]";
 
-    const paginationContainerClass = isLight
-        ? "bg-white border-t border-gray-200 sm:px-6"
-        : "border-t border-white/5 bg-white/5";
-    
-    const paginationTextClass = isLight ? "text-gray-700" : "text-white";
-    const paginationSubTextClass = isLight ? "text-gray-500" : "text-slate-400";
-    
-    const btnClass = isLight
-        ? "border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
-        : "text-white bg-[#1a1a24] border border-white/10 hover:bg-white/5";
-
     return (
         <div className={`w-full overflow-x-auto ${containerClass}`}>
             <table className="w-full text-left border-collapse min-w-full">
@@ -138,7 +129,7 @@ export function DataTable<T>({
                                 <td key={index} className={`px-6 py-4 whitespace-nowrap ${col.cellClassName || ''}`}>
                                     {col.render
                                         ? col.render(item, index)
-                                        : col.accessor ? String(item[col.accessor] as any) : null}
+                                        : col.accessor ? String(item[col.accessor] as unknown) : null}
                                 </td>
                             ))}
                         </tr>
@@ -146,41 +137,14 @@ export function DataTable<T>({
                 </tbody>
             </table>
 
-            {((!isServerPaginated && data.length > itemsPerPage) || (isServerPaginated && totalPages > 1)) && (
-                <div className={`flex flex-col sm:flex-row items-center justify-between px-4 py-3 gap-4 ${paginationContainerClass}`}>
-                    <span className={`text-sm ${paginationSubTextClass}`}>
-                        Showing{' '}
-                        <span className={`font-medium ${paginationTextClass}`}>
-                            {isServerPaginated ? (currentPage - 1) * itemsPerPage + 1 : (currentPage - 1) * itemsPerPage + 1}
-                        </span>{' '}
-                        to{' '}
-                        <span className={`font-medium ${paginationTextClass}`}>
-                            {isServerPaginated 
-                                ? Math.min(currentPage * itemsPerPage, totalItems || 0) 
-                                : Math.min(currentPage * itemsPerPage, data.length)}
-                        </span>{' '}
-                        of{' '}
-                        <span className={`font-medium ${paginationTextClass}`}>
-                            {totalItems ?? data.length}
-                        </span>{' '}
-                        results
-                    </span>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handlePageChange(Math.max(currentPage - 1, 1)); }}
-                            disabled={currentPage === 1}
-                            className={`px-4 py-2 text-sm font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${btnClass}`}
-                        >
-                            Previous
-                        </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handlePageChange(Math.min(currentPage + 1, totalPages)); }}
-                            disabled={currentPage >= totalPages}
-                            className={`px-4 py-2 text-sm font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${btnClass}`}
-                        >
-                            Next
-                        </button>
-                    </div>
+            {((!isServerPaginated && data.length > 0) || (isServerPaginated && totalItems > 0)) && (
+                <div className="px-4 py-2 border-t border-white/5">
+                    <Pagination
+                        currentPage={currentPage}
+                        totalItems={totalItems}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={handlePageChange}
+                    />
                 </div>
             )}
         </div>

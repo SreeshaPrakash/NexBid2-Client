@@ -30,8 +30,8 @@ const EditProject: React.FC = () => {
             await dispatch(updateProject({ projectId, data })).unwrap();
             toast.success('Project updated successfully!');
             navigate(`/${ProjectRoute.MY_PROJECTS}`);
-        } catch (err: any) {
-            toast.error(err || 'Failed to update project');
+        } catch (err: unknown) {
+            toast.error((err as string) || 'Failed to update project');
         }
     };
 
@@ -65,7 +65,7 @@ const EditProject: React.FC = () => {
                         {currentProject && (
                             <ProjectForm 
                                 initialData={currentProject} 
-                                onSubmit={handleSubmit as any} 
+                                onSubmit={handleSubmit as (data: CreateProjectDTO) => Promise<void>} 
                                 isLoading={loading} 
                                 error={error} 
                             />

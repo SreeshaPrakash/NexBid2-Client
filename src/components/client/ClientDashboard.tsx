@@ -22,7 +22,7 @@ import { ProjectStatus } from '../../constants/projectConstants';
 
 const ClientDashboard: React.FC = () => {
     const { user } = useSelector((state: RootState) => state.auth);
-    const [dashboardData, setDashboardData] = React.useState<{ activeProjectsCount: number, totalBidsCount: number } | null>(null);
+    const [dashboardData, setDashboardData] = React.useState<{ activeProjectsCount: number, totalBidsCount: number, hiredTalentsCount: number, totalSpent: number } | null>(null);
     const [recentProjects, setRecentProjects] = React.useState<ProjectDTO[]>([]);
 
     React.useEffect(() => {
@@ -52,6 +52,10 @@ const ClientDashboard: React.FC = () => {
         fetchDashboardData();
     }, []);
 
+    const formatCurrency = (amount: number): string => {
+        return '₹' + amount.toLocaleString('en-IN');
+    };
+
     const stats = [
         {
             label: 'Active Projects',
@@ -77,7 +81,7 @@ const ClientDashboard: React.FC = () => {
         },
         {
             label: 'Hired Talents',
-            value: '5',
+            value: dashboardData?.hiredTalentsCount.toString() || '0',
             icon: Star,
             trend: 'Currently active',
             trendUp: false,
@@ -88,7 +92,7 @@ const ClientDashboard: React.FC = () => {
         },
         {
             label: 'Total Spent',
-            value: '₹12,500',
+            value: formatCurrency(dashboardData?.totalSpent || 0),
             icon: IndianRupee,
             trend: 'Lifetime spend',
             trendUp: false,

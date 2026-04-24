@@ -5,6 +5,7 @@ import type { ProjectDTO, CreateProjectDTO, UpdateProjectDTO } from '../../../ty
 
 interface ProjectState {
     projects: ProjectDTO[];
+    totalProjects: number;
     currentProject: ProjectDTO | null;
     loading: boolean;
     error: string | null;
@@ -12,6 +13,7 @@ interface ProjectState {
 
 const initialState: ProjectState = {
     projects: [],
+    totalProjects: 0,
     currentProject: null,
     loading: false,
     error: null,
@@ -19,22 +21,24 @@ const initialState: ProjectState = {
 
 export const fetchClientProjects = createAsyncThunk(
     'project/fetchClientProjects',
-    async (_, { rejectWithValue }) => {
+    async ({ page, limit }: { page?: number; limit?: number } = {}, { rejectWithValue }) => {
         try {
-            return await projectService.getClientProjects();
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch projects');
+            return await projectService.getClientProjects(page, limit);
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to fetch projects');
         }
     }
 );
 
 export const fetchOpenProjects = createAsyncThunk(
     'project/fetchOpenProjects',
-    async (_, { rejectWithValue }) => {
+    async ({ page, limit }: { page?: number; limit?: number } = {}, { rejectWithValue }) => {
         try {
-            return await projectService.getOpenProjects();
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch open projects');
+            return await projectService.getOpenProjects(page, limit);
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to fetch open projects');
         }
     }
 );
@@ -44,8 +48,9 @@ export const fetchProjectById = createAsyncThunk(
     async (projectId: string, { rejectWithValue }) => {
         try {
             return await projectService.fetchProjectById(projectId);
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch project details');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to fetch project details');
         }
     }
 );
@@ -55,8 +60,9 @@ export const createProject = createAsyncThunk(
     async (data: CreateProjectDTO, { rejectWithValue }) => {
         try {
             return await projectService.createProject(data);
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to create project');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to create project');
         }
     }
 );
@@ -66,8 +72,9 @@ export const updateProject = createAsyncThunk(
     async ({ projectId, data }: { projectId: string; data: UpdateProjectDTO }, { rejectWithValue }) => {
         try {
             return await projectService.updateProject(projectId, data);
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update project');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to update project');
         }
     }
 );
@@ -78,8 +85,21 @@ export const deleteProject = createAsyncThunk(
         try {
             await projectService.deleteProject(projectId);
             return projectId;
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to delete project');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to delete project');
+        }
+    }
+);
+
+export const extendProject = createAsyncThunk(
+    'project/extendProject',
+    async (projectId: string, { rejectWithValue }) => {
+        try {
+            return await projectService.extendProject(projectId);
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to extend project');
         }
     }
 );
@@ -102,9 +122,10 @@ const projectSlice = createSlice({
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(fetchClientProjects.fulfilled, (state, action: PayloadAction<ProjectDTO[]>) => {
+            .addCase(fetchClientProjects.fulfilled, (state, action: PayloadAction<{ projects: ProjectDTO[], total: number }>) => {
                 state.loading = false;
-                state.projects = action.payload;
+                state.projects = action.payload.projects;
+                state.totalProjects = action.payload.total;
             })
             .addCase(fetchClientProjects.rejected, (state, action) => {
                 state.loading = false;
@@ -115,9 +136,10 @@ const projectSlice = createSlice({
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(fetchOpenProjects.fulfilled, (state, action: PayloadAction<ProjectDTO[]>) => {
+            .addCase(fetchOpenProjects.fulfilled, (state, action: PayloadAction<{ projects: ProjectDTO[], total: number }>) => {
                 state.loading = false;
-                state.projects = action.payload;
+                state.projects = action.payload.projects;
+                state.totalProjects = action.payload.total;
             })
             .addCase(fetchOpenProjects.rejected, (state, action) => {
                 state.loading = false;
@@ -156,11 +178,11 @@ const projectSlice = createSlice({
             })
             .addCase(updateProject.fulfilled, (state, action: PayloadAction<ProjectDTO>) => {
                 state.loading = false;
-                const index = state.projects.findIndex(p => (p.id) === (action.payload.id));
+                const index = state.projects.findIndex(p => p.id === action.payload.id);
                 if (index !== -1) {
                     state.projects[index] = action.payload;
                 }
-                if ((state.currentProject?.id) === (action.payload.id)) {
+                if (state.currentProject?.id === action.payload.id) {
                     state.currentProject = action.payload;
                 }
             })
@@ -175,12 +197,28 @@ const projectSlice = createSlice({
             })
             .addCase(deleteProject.fulfilled, (state, action: PayloadAction<string>) => {
                 state.loading = false;
-                state.projects = state.projects.filter(p => (p.id) !== action.payload);
-                if ((state.currentProject?.id) === action.payload) {
+                state.projects = state.projects.filter(p => p.id !== action.payload);
+                if (state.currentProject?.id === action.payload) {
                     state.currentProject = null;
                 }
             })
             .addCase(deleteProject.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+            // Extend Project
+            .addCase(extendProject.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(extendProject.fulfilled, (state, action: PayloadAction<ProjectDTO>) => {
+                state.loading = false;
+                const index = state.projects.findIndex(p => p.id === action.payload.id);
+                if (index !== -1) {
+                    state.projects[index] = action.payload;
+                }
+            })
+            .addCase(extendProject.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload as string;
             });

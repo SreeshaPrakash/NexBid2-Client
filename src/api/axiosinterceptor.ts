@@ -47,7 +47,7 @@ export const setupAxiosInterceptors = (store: { getState: () => RootState; dispa
       const isLoginPage = window.location.pathname === "/login" || window.location.pathname === "/admin/login";
 
       if (error.response?.status === 403) {
-        const errorData = error.response.data as any;
+        const errorData = error.response.data as { message?: string };
         if (errorData?.message?.toLowerCase().includes('blocked')) {
           if (isAdminRequest) {
             store.dispatch(adminLogout());

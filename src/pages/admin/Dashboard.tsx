@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, generatePath } from 'react-router-dom';
 import { AdminRoute } from '../../constants/routeConstansts';
 import { DataTable } from '../../components/common/DataTable';
+import useDebounce from '../../hooks/useDebounce';
 import type { Column } from '../../components/common/DataTable';
 import {
     Search,
@@ -56,6 +57,7 @@ const Dashboard: React.FC = () => {
     const [verifications, setVerifications] = useState<FreelancerVerification[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [selectedRole, setSelectedRole] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
 
@@ -71,11 +73,11 @@ const Dashboard: React.FC = () => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
 
-    const fetchUsers = async () => {
+    const fetchUsers = React.useCallback(async () => {
         setLoading(true);
         try {
             const response = await getAllUsers({
-                search: searchTerm,
+                search: debouncedSearchTerm,
                 role: selectedRole,
                 status: selectedStatus,
                 page: currentPage,
@@ -88,26 +90,26 @@ const Dashboard: React.FC = () => {
                     setTotalUsers(response.pagination.totalUsers);
                 }
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Failed to load users");
         } finally {
             setLoading(false);
         }
-    };
+    }, [debouncedSearchTerm, selectedRole, selectedStatus, currentPage, limit]);
 
-    const fetchVerifications = async () => {
+    const fetchVerifications = React.useCallback(async () => {
         setLoading(true);
         try {
             const response = await getPendingVerifications();
             if (response.success) {
                 setVerifications(response.data || []);
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Failed to load verification requests");
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -120,7 +122,7 @@ const Dashboard: React.FC = () => {
         // Initial fetch for both on mount to have badge counts ready
         fetchUsers();
         fetchVerifications();
-    }, []);
+    }, [fetchUsers, fetchVerifications]);
 
     useEffect(() => {
         if (activeTab === 'users') {
@@ -128,7 +130,7 @@ const Dashboard: React.FC = () => {
         } else {
             fetchVerifications();
         }
-    }, [activeTab, searchTerm, selectedRole, selectedStatus, currentPage]);
+    }, [activeTab, fetchUsers, fetchVerifications]);
 
     const handleToggleClick = (user: UserData) => {
         setSelectedUser(user);
@@ -143,7 +145,7 @@ const Dashboard: React.FC = () => {
                 toast.success("Freelancer verified successfully");
                 fetchVerifications();
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Approval failed");
         } finally {
             setActionLoading(false);
@@ -171,7 +173,7 @@ const Dashboard: React.FC = () => {
                 setIsRejectModalOpen(false);
                 setSelectedId(null);
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Rejection failed");
         } finally {
             setActionLoading(false);
@@ -192,7 +194,7 @@ const Dashboard: React.FC = () => {
                 setIsModalOpen(false);
                 setSelectedUser(null);
             }
-        } catch (error: any) {
+        } catch {
             toast.error("Action failed");
         } finally {
             setActionLoading(false);
@@ -206,7 +208,7 @@ const Dashboard: React.FC = () => {
             localStorage.removeItem('user');
             toast.success("Logged out successfully");
             navigate('/admin/login');
-        } catch (error: any) {
+        } catch (error) {
             toast.error("Logout failed");
             console.error("Logout Error:", error);
         }
@@ -325,7 +327,7 @@ const Dashboard: React.FC = () => {
         },
         {
             header: 'Status',
-            render: (req) => (
+            render: () => (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase">
                     <Clock className="mr-1.5 h-3 w-3" />
                     Pending

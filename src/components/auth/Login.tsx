@@ -83,11 +83,12 @@ const Login: React.FC = () => {
             } else {
                 toast.error(response.message || "Login failed. Please check your credentials.");
             }
-        } catch (error: any) {
-            if (error.response) {
-                const errorMessage = error.response.data?.message || "Invalid email or password";
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } }; request?: unknown };
+            if (err.response) {
+                const errorMessage = err.response.data?.message || "Invalid email or password";
                 toast.error(errorMessage);
-            } else if (error.request) {
+            } else if (err.request) {
                 toast.error("Network error. Please check your connection or try again later.");
             } else {
                 toast.error("An unexpected error occurred. Please try again.");
@@ -98,7 +99,7 @@ const Login: React.FC = () => {
         }
     };
 
-    const handleGoogleSuccess = async (tokenResponse: any) => {
+    const handleGoogleSuccess = async (tokenResponse: { access_token: string }) => {
         setLoading(true);
         console.log("Token Response from Google:", tokenResponse);
         try {
@@ -117,9 +118,10 @@ const Login: React.FC = () => {
             } else {
                 toast.error(response.message || "Google login failed: " + (response.message || "Unknown error"));
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Google Login Error:", error);
-            const errorMsg = error.response?.data?.message || error.message || "Google login failed";
+            const err = error as { response?: { data?: { message?: string } }; message?: string };
+            const errorMsg = err.response?.data?.message || err.message || "Google login failed";
             toast.error(errorMsg);
         } finally {
             setLoading(false);

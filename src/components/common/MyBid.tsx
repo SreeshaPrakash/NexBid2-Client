@@ -13,6 +13,12 @@ interface MyBidProps {
     loading?: boolean;
 }
 
+interface BidFormData {
+    bidAmount: number;
+    deliveryTime: number;
+    message: string;
+}
+
 const MyBid: React.FC<MyBidProps> = ({ bid, isProjectOpen, onUpdate, onWithdraw, loading = false }) => {
     const [isEditing, setIsEditing] = useState(false);
     
@@ -41,7 +47,7 @@ const MyBid: React.FC<MyBidProps> = ({ bid, isProjectOpen, onUpdate, onWithdraw,
         }
     }, [bid, isEditing, reset]);
 
-    const handleEditSubmit = async (data: any) => {
+    const handleEditSubmit = async (data: BidFormData) => {
         if (bid && onUpdate) {
             await onUpdate(bid.id, data);
             setIsEditing(false);

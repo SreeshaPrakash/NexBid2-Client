@@ -6,8 +6,8 @@ import { projectSchema } from '../../validations/zodSchemas';
 import { ProjectVisibility } from '../../constants/projectConstants';
 import type { CreateProjectDTO, ProjectDTO } from '../../types/project.dto';
 import { Loader2, AlertCircle, Save, X, Paperclip } from 'lucide-react';
-import { searchSkills } from '../../services/projectService';
 import { uploadToS3 } from '../../services/s3Service';
+import SkillSelector from '../common/SkillSelector';
 
 interface ProjectFormProps {
     initialData?: ProjectDTO;
@@ -26,9 +26,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, isLoad
     const day = String(defaultBiddingDeadline.getDate()).padStart(2, '0');
     const defaultBiddingDeadlineString = `${year}-${month}-${day}`;
 
-    const [skillInput, setSkillInput] = useState('');
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
     const [uploadingFiles, setUploadingFiles] = useState(false);
 
     const {
@@ -60,43 +57,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, isLoad
     const skills = watch('skillsRequired') || [];
     const attachments = watch('attachments') || [];
 
-    useEffect(() => {
-        const debounce = setTimeout(async () => {
-            if (skillInput.trim().length >= 1) {
-                const results = await searchSkills(skillInput.trim());
-                setSuggestions(results.filter((s) => !skills.includes(s)));
-                setShowSuggestions(true);
-            } else {
-                setSuggestions([]);
-
-                setShowSuggestions(false);
-            }
-        }, 300);
-        return () => clearTimeout(debounce);
-    }, [skillInput, skills]);
-
-    const handleSelectSuggestion = (suggestion: string) => {
-        if (!skills.includes(suggestion)) {
-            setValue('skillsRequired', [...skills, suggestion], { shouldValidate: true });
-        }
-        setSkillInput('');
-        setShowSuggestions(false);
-    };
-
-    const handleAddSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            const val = skillInput.trim();
-            if (val && !skills.includes(val)) {
-                setValue('skillsRequired', [...skills, val], { shouldValidate: true });
-            }
-            setSkillInput('');
-            setShowSuggestions(false);
-        }
-    };
-
-    const removeSkill = (skillToRemove: string) => {
-        setValue('skillsRequired', skills.filter((s: string) => s !== skillToRemove), { shouldValidate: true });
+    const handleSkillsChange = (newSkills: string[]) => {
+        setValue('skillsRequired', newSkills, { shouldValidate: true });
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,8 +72,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, isLoad
                 newAttachments.push(key);
             }
             setValue('attachments', newAttachments, { shouldValidate: true });
-        } catch (error) {
-            console.error("Failed to upload attachments.");
+        } catch (err) {
+            console.error("Failed to upload attachments.", err);
         } finally {
             setUploadingFiles(false);
             e.target.value = '';
@@ -138,7 +100,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, isLoad
     }, [initialData, reset]);
 
     return (
-        <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {error && (
                 <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-500 text-sm">
                     <AlertCircle className="h-5 w-5 shrink-0" />
@@ -181,40 +143,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, isLoad
                 </div>
                 <div>
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Required Skills</label>
-                    <div className={`p-2 bg-white/5 border ${errors.skillsRequired ? 'border-rose-500/50' : 'border-white/10'} rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all flex flex-wrap gap-2 relative`}>
-                        {skills.map((skill: string, index: number) => (
-                            <div key={index} className="flex items-center gap-1 bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-lg text-sm font-medium">
-                                {skill}
-                                <button type="button" onClick={() => removeSkill(skill)} className="hover:text-indigo-300">
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-                        ))}
-                        <input
-                            type="text"
-                            value={skillInput}
-                            onChange={(e) => setSkillInput(e.target.value)}
-                            onKeyDown={handleAddSkill}
-                            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
-                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                            placeholder={skills.length === 0 ? "e.g. React, Node.js (Press Enter to add)" : "Add more..."}
-                            className="bg-transparent border-none outline-none text-white text-sm placeholder:text-slate-600 flex-grow min-w-[120px] px-2 py-1"
-                        />
-                        {showSuggestions && suggestions.length > 0 && (
-                            <div className="absolute top-[100%] left-0 right-0 mt-1 bg-[#1e1e2e] border border-white/10 rounded-xl shadow-xl z-[50] max-h-48 overflow-y-auto">
-                                {suggestions.map((suggestion, index) => (
-                                    <div
-                                        key={index}
-                                        onClick={() => handleSelectSuggestion(suggestion)}
-                                        className="px-4 py-2 hover:bg-white/5 cursor-pointer text-sm text-slate-300 transition-colors"
-                                    >
-                                        {suggestion}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    {errors.skillsRequired && <p className="mt-1 text-xs text-rose-500 font-medium">{errors.skillsRequired.message}</p>}
+                    <SkillSelector 
+                        selectedSkills={skills} 
+                        onSkillsChange={handleSkillsChange}
+                        error={errors.skillsRequired?.message}
+                        placeholder="Search and select required skills..."
+                    />
                 </div>
 
                 <div className="md:col-span-2">

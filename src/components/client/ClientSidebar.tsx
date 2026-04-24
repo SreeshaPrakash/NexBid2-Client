@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { User, Briefcase, FileText, LayoutDashboard, MessageSquare, Settings } from 'lucide-react';
+import { User, Briefcase, LayoutDashboard } from 'lucide-react';
 import { ProjectRoute, ClientRoute } from '../../constants/routeConstansts';
 
 const ClientSidebar: React.FC = () => {

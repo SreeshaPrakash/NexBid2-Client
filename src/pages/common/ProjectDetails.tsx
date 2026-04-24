@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { fetchProjectById, deleteProject, clearCurrentProject, clearError } from '../../redux/slices/project/projectSlice';
+import { placeBid } from '../../redux/slices/bid/bidSlice';
+import PlaceBidModal from '../../components/common/PlaceBidModal';
 import toast from 'react-hot-toast';
 import { ProjectRoute } from '../../constants/routeConstansts';
 
@@ -22,8 +24,8 @@ const ProjectDetails: React.FC = () => {
     const dispatch = useAppDispatch();
     const { currentProject, loading } = useAppSelector((state) => state.project);
     const { user, activeRole } = useAppSelector((state) => state.auth);
-    const [isBidding, setIsBidding] = useState(false);
-    const [bidData, setBidData] = useState({ amount: '', duration: '', message: '' });
+    const [isBiddingModalOpen, setIsBiddingModalOpen] = useState(false);
+    const [isSubmittingBid, setIsSubmittingBid] = useState(false);
 
     useEffect(() => {
         dispatch(clearError());
@@ -54,7 +56,7 @@ const ProjectDetails: React.FC = () => {
                                 await dispatch(deleteProject(currentProject.id || currentProject._id!)).unwrap();
                                 toast.success("Project deleted successfully");
                                 navigate(`/${ProjectRoute.MY_PROJECTS}`);
-                            } catch (err: any) {
+                            } catch {
                                 toast.error("Failed to delete project");
                             }
                         }}
@@ -76,11 +78,24 @@ const ProjectDetails: React.FC = () => {
         });
     };
 
-    const handleBidSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        toast.success("Your bid has been submitted successfully!");
-        setIsBidding(false);
-        setBidData({ amount: '', duration: '', message: '' });
+    const handleBidSubmit = async (data: { bidAmount: number; deliveryTime: number; message: string }) => {
+        if (!projectId) return;
+        setIsSubmittingBid(true);
+        try {
+            await dispatch(placeBid({
+                projectId,
+                bidAmount: data.bidAmount,
+                deliveryTime: data.deliveryTime,
+                message: data.message
+            })).unwrap();
+            
+            toast.success("Your bid has been submitted successfully!");
+            setIsBiddingModalOpen(false);
+        } catch (err: unknown) {
+            toast.error((err as string) || "Failed to place bid");
+        } finally {
+            setIsSubmittingBid(false);
+        }
     };
 
     if (loading && !currentProject) {
@@ -110,8 +125,8 @@ const ProjectDetails: React.FC = () => {
         );
     }
 
-    // Check if current user is the owner and acting as a client
-    const isOwner = activeRole === 'client' && (user?.id === currentProject.clientId || (user as any)?._id === currentProject.clientId);
+    // Check if current user is the owner (regardless of active role)
+    const isOwner = user?.id === currentProject.clientId || (user as { _id?: string })?._id === currentProject.clientId;
 
     return (
         <div className="w-full">
@@ -160,7 +175,7 @@ const ProjectDetails: React.FC = () => {
                                     <div className="mt-10">
                                         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Required Skills</h3>
                                         <div className="flex flex-wrap gap-2">
-                                            {currentProject.skillsRequired.map((skill: string, index: number) => (
+                                            {currentProject.skillsRequired.map((skill, index) => (
                                                 <div key={index} className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg text-sm font-medium">
                                                     {skill}
                                                 </div>
@@ -229,9 +244,9 @@ const ProjectDetails: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {activeRole === 'freelancer' && !isBidding && (
+                                {activeRole === 'freelancer' && !isOwner && (
                                     <button 
-                                        onClick={() => setIsBidding(true)}
+                                        onClick={() => setIsBiddingModalOpen(true)}
                                         className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all active:scale-95 shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-3 group"
                                     >
                                         Place a Bid
@@ -239,61 +254,16 @@ const ProjectDetails: React.FC = () => {
                                     </button>
                                 )}
 
-                                {isBidding && (
-                                    <form onSubmit={handleBidSubmit} className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                                        <h4 className="text-white font-bold mb-4">Submit Your Proposal</h4>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Your Bid Amount (₹)</label>
-                                            <input 
-                                                type="number" 
-                                                required
-                                                value={bidData.amount}
-                                                onChange={(e) => setBidData({...bidData, amount: e.target.value})}
-                                                placeholder="e.g. 5000"
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Delivery Time (Days)</label>
-                                            <input 
-                                                type="number" 
-                                                required
-                                                value={bidData.duration}
-                                                onChange={(e) => setBidData({...bidData, duration: e.target.value})}
-                                                placeholder="e.g. 7"
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Cover Letter</label>
-                                            <textarea 
-                                                required
-                                                value={bidData.message}
-                                                onChange={(e) => setBidData({...bidData, message: e.target.value})}
-                                                placeholder="Describe why you're the best fit..."
-                                                rows={4}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
-                                            />
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <button 
-                                                type="submit"
-                                                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all"
-                                            >
-                                                Submit Bid
-                                            </button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setIsBidding(false)}
-                                                className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all"
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </form>
-                                )}
+                                <PlaceBidModal 
+                                    isOpen={isBiddingModalOpen}
+                                    onClose={() => setIsBiddingModalOpen(false)}
+                                    onSubmit={handleBidSubmit}
+                                    projectTitle={currentProject.title}
+                                    projectBudget={currentProject.budget}
+                                    isSubmitting={isSubmittingBid}
+                                />
 
-                                {isOwner && (
+                                {isOwner && activeRole === 'client' && (
                                     <div className="space-y-4">
                                         <div className="h-px bg-white/5 my-6" />
                                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Project Management</p>

@@ -22,8 +22,10 @@ const CreateProject: React.FC = () => {
             await dispatch(createProject(data)).unwrap();
             toast.success('Project posted successfully!');
             navigate(`/${ProjectRoute.MY_PROJECTS}`);
-        } catch (err: any) {
-            toast.error(err || 'Failed to post project');
+        } catch (error: unknown) {
+            console.error("Project submission error:", error);
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || "Failed to create project");
         }
     };
 

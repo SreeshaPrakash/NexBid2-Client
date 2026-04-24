@@ -49,7 +49,9 @@ const Navbar: React.FC = () => {
     const handleLogout = async () => {
         try {
             await logoutApi();
-        } catch (_) {}
+        } catch {
+            // Ignore logout API failure and proceed with client-side logout
+        }
         dispatch(logoutAction());
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
@@ -79,8 +81,9 @@ const Navbar: React.FC = () => {
             } else {
                 toast.error(response.message || 'Failed to switch role');
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Error switching role');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || 'Error switching role');
         } finally {
             setIsSwitching(false);
         }

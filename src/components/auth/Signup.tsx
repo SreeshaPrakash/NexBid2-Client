@@ -83,15 +83,16 @@ const Signup: React.FC = () => {
             } else {
                 toast.error(response.message || "Signup failed");
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "An error occurred during signup");
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || "An error occurred during signup");
             console.error(error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleGoogleSuccess = async (tokenResponse: any) => {
+    const handleGoogleSuccess = async (tokenResponse: { access_token: string }) => {
         setLoading(true);
         console.log("Token Response from Google (Signup):", tokenResponse);
         try {
@@ -110,9 +111,10 @@ const Signup: React.FC = () => {
             } else {
                 toast.error(response.message || "Google signup failed: " + (response.message || "Unknown error"));
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Google Signup Error:", error);
-            const errorMsg = error.response?.data?.message || error.message || "Google signup failed";
+            const err = error as { response?: { data?: { message?: string } }; message?: string };
+            const errorMsg = err.response?.data?.message || err.message || "Google signup failed";
             toast.error(errorMsg);
         } finally {
             setLoading(false);

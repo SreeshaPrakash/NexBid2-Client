@@ -1,3 +1,12 @@
+export interface User {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    roles: string[];
+    activeRole?: string;
+}
+
 export interface RegisterDTO {
     name?: string;
     email: string;
@@ -14,7 +23,7 @@ export interface LoginDTO {
 export interface AuthResponse {
     success: boolean;
     message: string;
-    user?: any;
+    user?: User;
     accessToken?: string;
     refreshToken?: string;
     isNewUser?: boolean;
@@ -23,7 +32,7 @@ export interface AuthResponse {
 export interface GoogleLoginResponseDTO {
     success: boolean;
     message: string;
-    user: any;
+    user: User;
     accessToken: string;
     refreshToken: string;
     isNewUser: boolean;

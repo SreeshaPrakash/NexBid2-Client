@@ -30,7 +30,13 @@ const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ isOpen, onClose, onSubmit
 
     if (!isOpen) return null;
 
-    const handleFormSubmit = async (data: any) => {
+    interface BidFormData {
+        bidAmount: number;
+        deliveryTime: number;
+        message: string;
+    }
+
+    const handleFormSubmit = async (data: BidFormData) => {
         await onSubmit(data);
         reset();
     };

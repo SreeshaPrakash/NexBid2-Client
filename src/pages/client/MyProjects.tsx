@@ -2,21 +2,26 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Briefcase, ChevronRight } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { fetchClientProjects, deleteProject, updateProject, clearError } from '../../redux/slices/project/projectSlice';
+import { fetchClientProjects, deleteProject, extendProject, clearError } from '../../redux/slices/project/projectSlice';
 import ProjectTable from '../../components/project/ProjectTable';
 import { ProjectRoute } from '../../constants/routeConstansts';
-import { ProjectStatus } from '../../constants/projectConstants';
 import toast from 'react-hot-toast';
 
 const MyProjects: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { projects, loading } = useAppSelector((state) => state.project);
+    const { projects, totalProjects, loading } = useAppSelector((state) => state.project);
+    const [currentPage, setCurrentPage] = React.useState(1);
+    const itemsPerPage = 4;
 
     useEffect(() => {
         dispatch(clearError());
-        dispatch(fetchClientProjects());
-    }, [dispatch]);
+        dispatch(fetchClientProjects({ page: currentPage, limit: itemsPerPage }));
+    }, [dispatch, currentPage, itemsPerPage]);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+    };
 
     const handleEdit = (projectId: string) => {
         navigate(ProjectRoute.EDIT.replace(':projectId', projectId));
@@ -38,8 +43,8 @@ const MyProjects: React.FC = () => {
                             try {
                                 await dispatch(deleteProject(projectId)).unwrap();
                                 toast.success('Project deleted successfully');
-                            } catch (err: any) {
-                                toast.error(err || 'Failed to delete project');
+                            } catch (err: unknown) {
+                                toast.error((err as string) || 'Failed to delete project');
                             }
                         }}
                         className="flex-1 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-lg transition-colors"
@@ -61,23 +66,11 @@ const MyProjects: React.FC = () => {
     };
 
     const handleExtend = async (projectId: string) => {
-        const newDeadline = new Date();
-        newDeadline.setDate(newDeadline.getDate() + 5);
-        
-        // Use local date components to avoid timezone shift from toISOString()
-        const year = newDeadline.getFullYear();
-        const month = String(newDeadline.getMonth() + 1).padStart(2, '0');
-        const day = String(newDeadline.getDate()).padStart(2, '0');
-        const dateString = `${year}-${month}-${day}`;
-
         try {
-            await dispatch(updateProject({
-                projectId,
-                data: { biddingDeadline: dateString }
-            })).unwrap();
-            toast.success("Bidding deadline successfully extended by 5 days");
-        } catch (err: any) {
-            toast.error("Failed to extend deadline");
+            await dispatch(extendProject(projectId)).unwrap();
+            toast.success("Bidding deadline successfully extended by 5 days from the current deadline");
+        } catch (err: unknown) {
+            toast.error((err as string) || "Failed to extend deadline");
         }
     };
 
@@ -107,12 +100,19 @@ const MyProjects: React.FC = () => {
                     </div>
 
                     <ProjectTable
-                        projects={projects.filter(p => p.projectStatus !== ProjectStatus.CANCELLED)}
+                        projects={projects}
                         loading={loading}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onExtend={handleExtend}
                         emptyMessage="You haven't posted any projects yet. Click the button above to start."
+                        pagination={{
+                            currentPage: currentPage,
+                            totalPages: Math.ceil(totalProjects / itemsPerPage),
+                            totalItems: totalProjects,
+                            onPageChange: handlePageChange
+                        }}
+                        itemsPerPage={itemsPerPage}
                     />
                 </div>
             </main>

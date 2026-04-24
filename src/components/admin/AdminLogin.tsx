@@ -70,8 +70,9 @@ const AdminLogin: React.FC = () => {
             } else {
                 toast.error(response.message || "Access denied");
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "Invalid credentials");
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || "Invalid credentials");
         } finally {
             setLoading(false);
         }

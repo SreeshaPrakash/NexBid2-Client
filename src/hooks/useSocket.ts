@@ -1,39 +1,37 @@
-
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL.replace('/api', '') || 'http://localhost:3000';
 
 export const useSocket = (projectId?: string) => {
-    const socketRef = useRef<Socket | null>(null);
+    const [socket, setSocket] = useState<Socket | null>(null);
 
     useEffect(() => {
         // Initialize socket connection
-        const socket = io(SOCKET_URL, {
+        const newSocket = io(SOCKET_URL, {
             withCredentials: true,
             transports: ['websocket', 'polling']
         });
 
-        socketRef.current = socket;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSocket(newSocket);
 
-        socket.on('connect', () => {
+        newSocket.on('connect', () => {
             console.log('Connected to socket server');
             if (projectId) {
-                socket.emit('join_project', projectId);
+                newSocket.emit('join_project', projectId);
             }
         });
 
-        socket.on('disconnect', () => {
+        newSocket.on('disconnect', () => {
             console.log('Disconnected from socket server');
         });
 
         // Cleanup on unmount
         return () => {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-            }
+            newSocket.disconnect();
         };
     }, [projectId]);
 
-    return socketRef.current;
+    return socket;
 };

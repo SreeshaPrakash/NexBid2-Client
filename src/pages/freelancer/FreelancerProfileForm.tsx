@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, User, Globe, Link as LinkIcon, Plus, X, ArrowRight, ShieldCheck, ArrowLeft, Camera, Phone, Mail, Eye } from 'lucide-react';
 import { createProfile, getProfile, updateProfile } from '../../services/freelancerService';
-import { searchSkills } from '../../services/projectService';
 import { uploadToS3 } from '../../services/s3Service';
 import { useDispatch, useSelector } from 'react-redux';
 import { setActiveRole, updateUser } from '../../redux/slices/auth/authSlice';
@@ -39,7 +38,7 @@ const FreelancerProfileForm: React.FC = () => {
         title: '',
         bio: '',
         skills: [],
-        hourlyRate: 0,
+        experiences: [{ title: '', description: '' }],
         experienceInYears: 0,
         phone: '',
         country: '',
@@ -69,14 +68,14 @@ const FreelancerProfileForm: React.FC = () => {
                 try {
                     const clientResp = await getClientProfile();
                     if (clientResp.success) clientData = clientResp.data;
-                } catch (e) {
-                    console.error('Client profile fetch failed', e);
+                } catch {
+                    console.error('Client profile fetch failed');
                 }
 
                 try {
                     const freelancerResp = await getProfile();
                     if (freelancerResp.success) freelancerData = freelancerResp.data;
-                } catch (e) {
+                } catch {
                     // This is expected if the freelancer profile doesn't exist yet
                     console.log('Freelancer profile not found or fetch failed');
                 }
@@ -106,7 +105,7 @@ const FreelancerProfileForm: React.FC = () => {
                         profileImage: clientData?.profileImage || ''
                     }));
                 }
-            } catch (error) {
+            } catch (error: unknown) {
                 console.error('Critical error loading profile data:', error);
                 toast.error('Error initializing form');
             } finally {
@@ -115,14 +114,32 @@ const FreelancerProfileForm: React.FC = () => {
         };
 
         fetchProfileData();
-    }, []);
+    }, [user]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData({
             ...formData,
-            [name]: (name === 'hourlyRate' || name === 'experienceInYears') ? Number(value) : value
+            [name]: name === 'experienceInYears' ? Number(value) : value
         });
+    };
+
+    const handleExperienceChange = (index: number, field: 'title' | 'description', value: string) => {
+        const newExperiences = [...(formData.experiences || [])];
+        newExperiences[index] = { ...newExperiences[index], [field]: value };
+        setFormData({ ...formData, experiences: newExperiences });
+    };
+
+    const addExperience = () => {
+        setFormData({
+            ...formData,
+            experiences: [...(formData.experiences || []), { title: '', description: '' }]
+        });
+    };
+
+    const removeExperience = (index: number) => {
+        const newExperiences = formData.experiences?.filter((_, i) => i !== index);
+        setFormData({ ...formData, experiences: newExperiences });
     };
 
     const handleSkillsChange = (newSkills: string[]) => {
@@ -199,10 +216,10 @@ const FreelancerProfileForm: React.FC = () => {
         if (!validationResult.success) {
             const newErrors: Record<string, string> = {};
             validationResult.error.issues.forEach(issue => {
-                if (issue.path[0]) {
-                    newErrors[issue.path[0].toString()] = issue.message;
-                }
+                const path = issue.path.join('.');
+                newErrors[path] = issue.message;
             });
+            console.log('Validation errors:', newErrors);
             setErrors(newErrors);
             toast.error('Please fix the validation errors before proceeding');
             return;
@@ -266,8 +283,9 @@ const FreelancerProfileForm: React.FC = () => {
             } else {
                 toast.error(response.message || `Operation failed`);
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || `Network error during profile ${isEditMode ? 'update' : 'setup'}`);
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || `Network error during profile ${isEditMode ? 'update' : 'setup'}`);
         } finally {
             setLoading(false);
         }
@@ -338,7 +356,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                     type="file"
                                                     accept="image/*"
                                                     className="hidden"
-                                                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null)}
                                                 />
                                             </label>
                                         </div>
@@ -451,12 +469,11 @@ const FreelancerProfileForm: React.FC = () => {
                                     {errors.bio && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.bio}</p>}
                                 </div>
 
-                                {/* Rate and Experience */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 gap-6">
                                     <div className="space-y-1">
                                         <label className={labelClasses}>
                                             <Briefcase className="h-3.5 w-3.5" />
-                                            Exp. (Years)
+                                            Total Experience (Years)
                                         </label>
                                         <input
                                             type="number"
@@ -468,20 +485,67 @@ const FreelancerProfileForm: React.FC = () => {
                                         />
                                         {errors.experienceInYears && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.experienceInYears}</p>}
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className={labelClasses}>
-                                            <Briefcase className="h-3.5 w-3.5" />
-                                            Hourly Rate (₹)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            name="hourlyRate"
-                                            value={formData.hourlyRate}
-                                            onChange={handleChange}
-                                            placeholder="0"
-                                            className={inputClasses}
-                                        />
-                                        {errors.hourlyRate && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.hourlyRate}</p>}
+                                </div>
+
+                                {/* Detailed Experiences */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                                        <h3 className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Work Experience Details</h3>
+                                        <button
+                                            type="button"
+                                            onClick={addExperience}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                                        >
+                                            <Plus className="h-3 w-3" />
+                                            Add Experience
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        {formData.experiences?.map((exp, index) => (
+                                            <div key={index} className="p-6 bg-white/5 border border-white/5 rounded-2xl space-y-4 relative group">
+                                                {formData.experiences && formData.experiences.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeExperience(index)}
+                                                        className="absolute top-4 right-4 p-2 text-slate-500 hover:text-rose-500 transition-colors"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                <div className="space-y-1">
+                                                    <label className={labelClasses}>Experience Title</label>
+                                                    <input
+                                                        type="text"
+                                                        value={exp.title}
+                                                        onChange={(e) => handleExperienceChange(index, 'title', e.target.value)}
+                                                        placeholder="e.g. Senior Software Engineer at TechCorp"
+                                                        className={inputClasses}
+                                                    />
+                                                    {errors[`experiences.${index}.title`] && (
+                                                        <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">
+                                                            {errors[`experiences.${index}.title`]}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className={labelClasses}>Description</label>
+                                                    <textarea
+                                                        value={exp.description}
+                                                        onChange={(e) => handleExperienceChange(index, 'description', e.target.value)}
+                                                        placeholder="Describe your roles and responsibilities..."
+                                                        rows={3}
+                                                        className={inputClasses + " resize-none"}
+                                                    />
+                                                    {errors[`experiences.${index}.description`] && (
+                                                        <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">
+                                                            {errors[`experiences.${index}.description`]}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {errors.experiences && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.experiences}</p>}
                                     </div>
                                 </div>
 
@@ -604,7 +668,7 @@ const FreelancerProfileForm: React.FC = () => {
                                     </div>
 
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                        {formData.previousWorks?.map((item: string, index: number) => (
+                                        {formData.previousWorks?.map((item, index) => (
                                             <div
                                                 key={index}
                                                 className="group relative aspect-video bg-[#181820] rounded-xl overflow-hidden border border-white/5 hover:border-indigo-500/30 transition-all cursor-pointer"

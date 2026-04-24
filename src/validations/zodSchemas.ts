@@ -48,10 +48,13 @@ export const freelancerProfileSchema = z.object({
     title: z.string().trim().min(3, "Title must be at least 3 characters"),
     bio: z.string().trim().min(10, "Summary must be at least 10 characters"),
     experienceInYears: z.number().min(0, "Experience cannot be negative"),
-    hourlyRate: z.number().min(1, "Hourly rate must be greater than 0"),
+    experiences: z.array(z.object({
+        title: z.string().min(3, "Experience title must be at least 3 characters"),
+        description: z.string().min(10, "Experience description must be at least 10 characters")
+    })).min(1, "At least one experience is required"),
     country: z.string().min(2, "Country is required").or(z.literal('')).optional(),
     state: z.string().min(2, "State/City is required").or(z.literal('')).optional(),
-    phone: z.string().regex(/^\+?[0-9\s\-]{7,15}$/, "Invalid phone number").or(z.literal('')).optional(),
+    phone: z.string().regex(/^\+?[0-9\s-]{7,15}$/, "Invalid phone number").or(z.literal('')).optional(),
     portfolio: z.union([z.literal(''), z.string().url("Invalid URL").optional()]),
     gitHubUrl: z.union([z.literal(''), z.string().url("Invalid URL").optional()]),
     linkedinUrl: z.union([z.literal(''), z.string().url("Invalid URL").optional()]),

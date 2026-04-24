@@ -20,14 +20,15 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
   const hasAccess = allowedRoles.includes(currentRole);
 
   useEffect(() => {
-    let timeoutId: any = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     if (!hasAccess && isAuthenticated) {
       // Small debounce before throwing to unauthorized.
       timeoutId = setTimeout(() => {
         setIsRedirecting(true);
       }, 50);
     } else {
-      setIsRedirecting(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsRedirecting(prev => prev ? false : prev);
     }
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
