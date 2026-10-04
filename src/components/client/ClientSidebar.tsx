@@ -1,13 +1,15 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { User, Briefcase, FileText, LayoutDashboard } from 'lucide-react';
+import { User, Briefcase, FileText, LayoutDashboard, MessageSquare, Settings } from 'lucide-react';
+import { ProjectRoute, ClientRoute } from '../../constants/routeConstansts';
 
 const ClientSidebar: React.FC = () => {
     const navItems = [
-        { path: '/home', icon: <LayoutDashboard className="h-5 w-5" />, label: 'Dashboard' },
-        { path: '/client/profile', icon: <User className="h-5 w-5" />, label: 'Profile' },
-        { path: '/client/projects', icon: <Briefcase className="h-5 w-5" />, label: 'Projects' },
-        { path: '/client/bids', icon: <FileText className="h-5 w-5" />, label: 'Bids' },
+        { path: ClientRoute.HOME, icon: <LayoutDashboard className="h-5 w-5" />, label: 'Dashboard' },
+        { path: ClientRoute.PROFILE, icon: <User className="h-5 w-5" />, label: 'Profile' },
+        { path: ProjectRoute.MY_PROJECTS, icon: <Briefcase className="h-5 w-5" />, label: 'Projects' },
+        // { path: ClientRoute.BIDS, icon: <FileText className="h-5 w-5" />, label: 'Bids' },
+        // { path: ClientRoute.MESSAGES, icon: <MessageSquare className="h-5 w-5" />, label: 'Messages' },
+        // { path: ClientRoute.SETTINGS, icon: <Settings className="h-5 w-5" />, label: 'Settings' },
     ];
 
     return (
@@ -29,21 +31,6 @@ const ClientSidebar: React.FC = () => {
                             {item.label}
                         </NavLink>
                     ))}
-
-                    {/* Reserved Space for Upcoming */}
-                    {/* <div className="px-4 py-3 mt-8 border-t border-slate-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Upcoming Features</p>
-                        <div className="space-y-3 opacity-50 grayscale pointer-events-none">
-                            <div className="flex items-center gap-3 px-2 py-2 text-slate-500 font-semibold">
-                                <div className="h-5 w-5 rounded bg-slate-200"></div>
-                                Messages
-                            </div>
-                            <div className="flex items-center gap-3 px-2 py-2 text-slate-500 font-semibold">
-                                <div className="h-5 w-5 rounded bg-slate-200"></div>
-                                Billings
-                            </div>
-                        </div>
-                    </div> */}
                 </nav>
             </div>
         </aside>

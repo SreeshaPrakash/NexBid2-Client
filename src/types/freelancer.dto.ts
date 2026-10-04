@@ -4,8 +4,8 @@ export interface FreelancerProfileDTO {
     title: string;
     bio: string;
     skills: string[];
-    experience?: any[]; // details can be refined later
-    education?: any[]; // details can be refined later
+    experience?: any[];
+    education?: any[];
     hourlyRate?: number;
     contactNumber?: string;
     phone?: string | number;

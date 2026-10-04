@@ -237,7 +237,6 @@ const ClientProfileForm: React.FC = () => {
                                         <input
                                             type="text"
                                             name="name"
-                                            required
                                             value={formData.name}
                                             onChange={handleChange}
                                             className={inputClasses}

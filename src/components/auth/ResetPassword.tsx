@@ -29,7 +29,7 @@ const ResetPassword: React.FC = () => {
         } else {
             // If someone navigates here directly without Email, send them back
             toast.error("Session expired or invalid. Please try again.");
-            navigate(`/${UserRoute.FORGOT_PASSWORD}`);
+            navigate(UserRoute.FORGOT_PASSWORD);
         }
     }, [location.state, navigate]);
 
@@ -69,7 +69,7 @@ const ResetPassword: React.FC = () => {
                 newPassword
             });
             toast.success(response.message || "Password reset successfully!");
-            navigate(`/${UserRoute.LOGIN}`);
+            navigate(UserRoute.LOGIN);
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Failed to reset password. Please check your OTP.");
         } finally {
@@ -201,7 +201,7 @@ const ResetPassword: React.FC = () => {
                 <div className="text-center mt-6">
                     <p className="text-sm text-gray-600">
                         Back to{' '}
-                        <Link to={`/${UserRoute.FORGOT_PASSWORD}`} title="Go back to OTP step" className="font-medium text-teal-600 hover:text-teal-500 hover:underline">
+                        <Link to={UserRoute.FORGOT_PASSWORD} title="Go back to OTP step" className="font-medium text-teal-600 hover:text-teal-500 hover:underline">
                             Forgot Password
                         </Link>
                     </p>

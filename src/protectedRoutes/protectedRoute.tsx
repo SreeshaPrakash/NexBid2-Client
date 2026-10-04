@@ -1,7 +1,8 @@
-// src/routes/ProtectedRoute.tsx
+
 import { Navigate, Outlet } from "react-router-dom";
 import { useSelector } from "react-redux";
 import type { RootState } from "../redux/store";
+import { UserRoute } from "../constants/routeConstansts";
 
 const ProtectedRoute = () => {
   const isAuthenticated = useSelector(
@@ -9,7 +10,7 @@ const ProtectedRoute = () => {
   );
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={UserRoute.LOGIN} replace />;
   }
 
   return <Outlet />;

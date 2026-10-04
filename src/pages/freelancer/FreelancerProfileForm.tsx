@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, User, Globe, Link as LinkIcon, Plus, X, ArrowRight, ShieldCheck, ArrowLeft, Camera, Phone, Mail, Eye } from 'lucide-react';
 import { createProfile, getProfile, updateProfile } from '../../services/freelancerService';
+import { searchSkills } from '../../services/projectService';
 import { uploadToS3 } from '../../services/s3Service';
 import { useDispatch, useSelector } from 'react-redux';
 import { setActiveRole, updateUser } from '../../redux/slices/auth/authSlice';
@@ -11,6 +12,8 @@ import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import toast from 'react-hot-toast';
 import type { FreelancerProfileDTO } from '../../types/freelancer.dto';
+import { freelancerProfileSchema } from '../../validations/zodSchemas';
+import SkillSelector from '../../components/common/SkillSelector';
 
 const FreelancerProfileForm: React.FC = () => {
     const navigate = useNavigate();
@@ -20,12 +23,12 @@ const FreelancerProfileForm: React.FC = () => {
     const [uploading, setUploading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
-    const [skillInput, setSkillInput] = useState('');
     const [portfolioInput, setPortfolioInput] = useState('');
     const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const isVideo = (url: string) => {
         return url.match(/\.(mp4|webm|ogg|mov)$/i) !== null;
@@ -54,6 +57,7 @@ const FreelancerProfileForm: React.FC = () => {
             return () => URL.revokeObjectURL(url);
         }
     }, [selectedFile]);
+
 
     useEffect(() => {
         const fetchProfileData = async () => {
@@ -121,23 +125,10 @@ const FreelancerProfileForm: React.FC = () => {
         });
     };
 
-    const handleAddSkill = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && skillInput.trim()) {
-            e.preventDefault();
-            if (!formData.skills.includes(skillInput.trim())) {
-                setFormData({
-                    ...formData,
-                    skills: [...formData.skills, skillInput.trim()]
-                });
-            }
-            setSkillInput('');
-        }
-    };
-
-    const removeSkill = (skillToRemove: string) => {
+    const handleSkillsChange = (newSkills: string[]) => {
         setFormData({
             ...formData,
-            skills: formData.skills.filter(skill => skill !== skillToRemove)
+            skills: newSkills
         });
     };
 
@@ -173,11 +164,11 @@ const FreelancerProfileForm: React.FC = () => {
             });
 
             const uploadedKeys = await Promise.all(uploadPromises);
-            
+
             setFormData(prev => {
                 const currentWorks = prev.previousWorks || [];
                 const newWorks = [...currentWorks];
-                
+
                 uploadedKeys.forEach(key => {
                     if (!newWorks.includes(key)) {
                         newWorks.push(key);
@@ -203,6 +194,20 @@ const FreelancerProfileForm: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const validationResult = freelancerProfileSchema.safeParse(formData);
+        if (!validationResult.success) {
+            const newErrors: Record<string, string> = {};
+            validationResult.error.issues.forEach(issue => {
+                if (issue.path[0]) {
+                    newErrors[issue.path[0].toString()] = issue.message;
+                }
+            });
+            setErrors(newErrors);
+            toast.error('Please fix the validation errors before proceeding');
+            return;
+        }
+        setErrors({});
 
         if (formData.skills.length === 0) {
             toast.error('Please specify at least one core skill');
@@ -315,7 +320,7 @@ const FreelancerProfileForm: React.FC = () => {
                                         ) : (
                                             <User className="h-20 w-20 text-slate-700" />
                                         )}
-                                        
+
                                         <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
                                             {(previewUrl || formData.profileImage) && (
                                                 <button
@@ -357,11 +362,11 @@ const FreelancerProfileForm: React.FC = () => {
                                         <input
                                             type="text"
                                             name="name"
-                                            required
                                             value={formData.name}
                                             onChange={handleChange}
                                             className={inputClasses}
                                         />
+                                        {errors.name && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.name}</p>}
                                     </div>
                                     <div className="space-y-1">
                                         <label className={labelClasses}>
@@ -393,6 +398,7 @@ const FreelancerProfileForm: React.FC = () => {
                                             placeholder="e.g. India"
                                             className={inputClasses}
                                         />
+                                        {errors.country && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.country}</p>}
                                     </div>
                                     <div className="space-y-1">
                                         <label className={labelClasses}>
@@ -407,6 +413,7 @@ const FreelancerProfileForm: React.FC = () => {
                                             placeholder="e.g. Kerala"
                                             className={inputClasses}
                                         />
+                                        {errors.state && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.state}</p>}
                                     </div>
                                 </div>
 
@@ -419,12 +426,12 @@ const FreelancerProfileForm: React.FC = () => {
                                     <input
                                         type="text"
                                         name="title"
-                                        required
                                         value={formData.title}
                                         onChange={handleChange}
                                         placeholder="e.g. Full Stack Web Developer"
                                         className={inputClasses}
                                     />
+                                    {errors.title && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.title}</p>}
                                 </div>
 
                                 {/* Bio */}
@@ -435,13 +442,13 @@ const FreelancerProfileForm: React.FC = () => {
                                     </label>
                                     <textarea
                                         name="bio"
-                                        required
                                         rows={5}
                                         value={formData.bio}
                                         onChange={handleChange}
                                         placeholder="Describe your experience and focus area..."
                                         className={inputClasses + " resize-none"}
                                     />
+                                    {errors.bio && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.bio}</p>}
                                 </div>
 
                                 {/* Rate and Experience */}
@@ -459,6 +466,7 @@ const FreelancerProfileForm: React.FC = () => {
                                             placeholder="0"
                                             className={inputClasses}
                                         />
+                                        {errors.experienceInYears && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.experienceInYears}</p>}
                                     </div>
                                     <div className="space-y-1">
                                         <label className={labelClasses}>
@@ -468,12 +476,12 @@ const FreelancerProfileForm: React.FC = () => {
                                         <input
                                             type="number"
                                             name="hourlyRate"
-                                            required
                                             value={formData.hourlyRate}
                                             onChange={handleChange}
                                             placeholder="0"
                                             className={inputClasses}
                                         />
+                                        {errors.hourlyRate && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.hourlyRate}</p>}
                                     </div>
                                 </div>
 
@@ -495,6 +503,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 placeholder="https://yourportfolio.com"
                                                 className={inputClasses}
                                             />
+                                            {errors.portfolio && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.portfolio}</p>}
                                         </div>
                                         <div className="space-y-1">
                                             <label className={labelClasses}>
@@ -509,6 +518,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 placeholder="https://github.com/..."
                                                 className={inputClasses}
                                             />
+                                            {errors.gitHubUrl && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.gitHubUrl}</p>}
                                         </div>
                                         <div className="space-y-1">
                                             <label className={labelClasses}>
@@ -523,6 +533,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 placeholder="https://linkedin.com/in/..."
                                                 className={inputClasses}
                                             />
+                                            {errors.linkedinUrl && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.linkedinUrl}</p>}
                                         </div>
                                         <div className="space-y-1">
                                             <label className={labelClasses}>
@@ -537,6 +548,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 placeholder="+91 ..."
                                                 className={inputClasses}
                                             />
+                                            {errors.phone && <p className="text-red-500 text-[10px] font-black uppercase tracking-wider mt-1 ml-1">{errors.phone}</p>}
                                         </div>
                                     </div>
                                 </div>
@@ -545,33 +557,14 @@ const FreelancerProfileForm: React.FC = () => {
                                 <div className="space-y-4">
                                     <label className={labelClasses}>
                                         <Plus className="h-3.5 w-3.5" />
-                                        Skill Matrix (Press Enter)
+                                        Skill Matrix (Search and Add)
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={skillInput}
-                                        onChange={(e) => setSkillInput(e.target.value)}
-                                        onKeyDown={handleAddSkill}
-                                        placeholder="Add technical or creative skills"
-                                        className={inputClasses}
-                                    />
-
-                                    <div className="flex flex-wrap gap-2">
-                                        {formData.skills.map((skill, index) => (
-                                            <span
-                                                key={index}
-                                                className="inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black bg-white/5 text-slate-300 border border-white/5 transition-all"
-                                            >
-                                                {skill}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeSkill(skill)}
-                                                    className="ml-2 text-slate-500 hover:text-red-400"
-                                                >
-                                                    <X className="h-3 w-3" />
-                                                </button>
-                                            </span>
-                                        ))}
+                                    <div className="pt-2">
+                                        <SkillSelector
+                                            selectedSkills={formData.skills}
+                                            onSkillsChange={handleSkillsChange}
+                                            error={errors.skills}
+                                        />
                                     </div>
                                 </div>
 
@@ -622,7 +615,7 @@ const FreelancerProfileForm: React.FC = () => {
                                                 ) : (
                                                     <img src={item} alt={`Portfolio ${index + 1}`} className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                                 )}
-                                                
+
                                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         type="button"
@@ -666,7 +659,7 @@ const FreelancerProfileForm: React.FC = () => {
 
             {/* Image Viewing Modal */}
             {viewingImage && (
-                <div 
+                <div
                     className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
                     onClick={() => setViewingImage(null)}
                 >
@@ -677,18 +670,18 @@ const FreelancerProfileForm: React.FC = () => {
                         <X className="h-6 w-6" />
                     </button>
                     {viewingImage && isVideo(viewingImage) ? (
-                        <video 
-                            src={viewingImage} 
+                        <video
+                            src={viewingImage}
                             controls
-                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
-                            onClick={(e) => e.stopPropagation()} 
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
                         />
                     ) : (
-                        <img 
-                            src={viewingImage} 
-                            alt="Enlarged view" 
-                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
-                            onClick={(e) => e.stopPropagation()} 
+                        <img
+                            src={viewingImage}
+                            alt="Enlarged view"
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
                         />
                     )}
                 </div>

@@ -3,6 +3,7 @@ import { User, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signupUser, googleLogin } from '../../services/authService';
 import toast from 'react-hot-toast';
+import { UserRoute } from '../../constants/routeConstansts';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../redux/slices/auth/authSlice';
@@ -78,7 +79,7 @@ const Signup: React.FC = () => {
 
             if (response.success) {
                 toast.success(response.message || "Account created successfully! Please verify your email.");
-                navigate('/verify-otp', { state: { email: formData.email } });
+                navigate(UserRoute.VERIFY_OTP, { state: { email: formData.email } });
             } else {
                 toast.error(response.message || "Signup failed");
             }
@@ -105,7 +106,7 @@ const Signup: React.FC = () => {
                 localStorage.setItem('accessToken', response.accessToken);
                 localStorage.setItem('user', JSON.stringify(response.user));
                 toast.success(response.message || "Signed up with Google!");
-                navigate('/home');
+                navigate(UserRoute.HOME);
             } else {
                 toast.error(response.message || "Google signup failed: " + (response.message || "Unknown error"));
             }
@@ -340,7 +341,7 @@ const Signup: React.FC = () => {
                     <div className="text-center mt-6">
                         <p className="text-sm text-gray-600">
                             Already have an account?{' '}
-                            <Link to="/login" className="font-medium text-teal-600 hover:text-teal-500 hover:underline">
+                            <Link to={UserRoute.LOGIN} className="font-medium text-teal-600 hover:text-teal-500 hover:underline">
                                 Sign in
                             </Link>
                         </p>
