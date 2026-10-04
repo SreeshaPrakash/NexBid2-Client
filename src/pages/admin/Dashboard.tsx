@@ -325,7 +325,7 @@ const Dashboard: React.FC = () => {
         },
         {
             header: 'Status',
-            render: (req) => (
+            render: () => (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase">
                     <Clock className="mr-1.5 h-3 w-3" />
                     Pending

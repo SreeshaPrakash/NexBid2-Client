@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface NavItem { label: string; href: string }
@@ -310,7 +310,7 @@ function FeaturesSection() {
         overflow: "hidden",
         border: "1px solid rgba(255,255,255,0.06)",
       }}>
-        {FEATURES.map((f, i) => (
+        {FEATURES.map((f) => (
           <div key={f.title}
             style={{
               padding: "2rem 1.8rem",

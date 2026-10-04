@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, User, Globe, Link as LinkIcon, Plus, X, ArrowRight, ShieldCheck, ArrowLeft, Camera, Phone, Mail, Eye } from 'lucide-react';
 import { createProfile, getProfile, updateProfile } from '../../services/freelancerService';
-import { searchSkills } from '../../services/projectService';
 import { uploadToS3 } from '../../services/s3Service';
 import { useDispatch, useSelector } from 'react-redux';
 import { setActiveRole, updateUser } from '../../redux/slices/auth/authSlice';
