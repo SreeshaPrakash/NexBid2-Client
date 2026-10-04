@@ -37,7 +37,35 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <Router>
-        <Toaster position="top-center" />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#121218',
+              color: '#FFFFFF',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '14px',
+              padding: '12px 18px',
+              fontSize: '13px',
+              fontWeight: 500,
+              fontFamily: "'DM Sans', sans-serif",
+              boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.7)',
+            },
+            success: {
+              iconTheme: {
+                primary: '#10B981',
+                secondary: '#121218',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#EF4444',
+                secondary: '#121218',
+              },
+            },
+          }}
+        />
         <Routes>
           {commonRoutes.map((route) => (
             <Route key={route.path} path={route.path} element={route.element} />

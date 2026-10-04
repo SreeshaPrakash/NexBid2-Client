@@ -50,10 +50,16 @@ const ProjectDetails: React.FC = () => {
         if (socket) {
             socket.on("new_bid_received", (bid) => {
                 dispatch(addRealTimeBid(bid));
+                toast.success(`New proposal received: ₹${Number(bid.bidAmount || 0).toLocaleString()}`, {
+                    icon: '🔔',
+                });
             });
 
             socket.on("bid_updated_received", (bid) => {
                 dispatch(addRealTimeBid(bid));
+                toast(`Proposal updated: ₹${Number(bid.bidAmount || 0).toLocaleString()}`, {
+                    icon: '📝',
+                });
             });
 
             return () => {
@@ -115,8 +121,8 @@ const ProjectDetails: React.FC = () => {
             dispatch(fetchMyBid(projectId));
             dispatch(fetchProjectBids(projectId));
         } catch (err: unknown) {
-            const error = err as string;
-            toast.error(error || "Failed to submit bid");
+            const error = typeof err === 'string' ? err : (err as any)?.message || "Failed to submit bid";
+            toast.error(error);
         }
     };
 
@@ -129,8 +135,8 @@ const ProjectDetails: React.FC = () => {
                 dispatch(fetchProjectBids(projectId));
             }
         } catch (err: unknown) {
-            const error = err as string;
-            toast.error(error || "Failed to update bid");
+            const error = typeof err === 'string' ? err : (err as any)?.message || "Failed to update bid";
+            toast.error(error);
         }
     };
 
@@ -143,8 +149,8 @@ const ProjectDetails: React.FC = () => {
                 dispatch(fetchProjectBids(projectId));
             }
         } catch (err: unknown) {
-            const error = err as string;
-            toast.error(error || "Failed to withdraw bid");
+            const error = typeof err === 'string' ? err : (err as any)?.message || "Failed to withdraw bid";
+            toast.error(error);
         }
     };
 
